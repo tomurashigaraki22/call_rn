@@ -109,6 +109,7 @@ function VoiceCall() {
       const publishResult = await zg.current.startPublishingStream(streamID, localStream);
   
       if (publishResult) {
+        alert("LC: ", localStream, publishResult)
         alert('Started publishing local audio and video stream');
         setLocalStream(localStream);
       } else {
