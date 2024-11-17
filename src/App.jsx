@@ -106,21 +106,28 @@ function VoiceCall() {
 
   const startLocalStream = async () => {
     try {
-      const localStream = await zg.current.createStream();
-      alert('Local stream created');
+      // Request audio-only stream
+      const localStream = await zg.current.createStream({ audio: true, video: false });
+      alert('Local audio stream created');
       
-      const localVideoElement = document.querySelector("#local-video");
-      localStream.playVideo(localVideoElement);
-      
-      const streamID = new Date().getTime().toString();
-      zg.current.startPublishingStream(streamID, localStream);
-      alert('Started publishing local stream');
-      
-      setLocalStream(localStream);
+      if (localStream) {
+        // Find the audio element to play the local stream
+        const localAudioElement = document.querySelector("#local-audio");
+        localStream.playAudio(localAudioElement);
+  
+        const streamID = new Date().getTime().toString();
+        const publishResult = await zg.current.startPublishingStream(streamID, localStream);
+        console.log('Publish result:', publishResult);  // Add this for debugging
+  
+        alert('Started publishing local audio stream');
+        setLocalStream(localStream);
+      }
     } catch (error) {
-      alert(`Error creating or publishing local stream: ${JSON.stringify(error)}`);
+      console.error('Error creating or publishing local audio stream:', error);  // Detailed error logging
+      alert(`Error creating or publishing stream: ${JSON.stringify(error)}`);
     }
   };
+  
 
   useEffect(() => {
     const handleStreamUpdate = async (roomID, updateType, streamList) => {
@@ -211,8 +218,8 @@ function VoiceCall() {
         </button>
       </div>
 
-      <div id="local-video" className="local-video" />
-    </div>
+      <div id="local-audio" className="local-audio" />
+      </div>
   );
 }
 
