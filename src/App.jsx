@@ -121,8 +121,7 @@ function VoiceCall() {
         }
         
         alert("####EEE");
-        alert("Publish result: ", JSON.stringify(publishResult));
-        console.log('Publish result:', publishResult);
+
     
         alert('Started publishing local audio stream');
         setLocalStream(localStream);
