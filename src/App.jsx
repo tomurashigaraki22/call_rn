@@ -5,7 +5,7 @@ import './App.css';
 
 const appID = 610181119; // Your AppID
 const serverURL = 'wss://webliveroom610181119-api.coolzcloud.com/ws'; // Your Server URL
-const flaskAPI = 'http://192.168.0.253:1245/generate_token'; // Flask backend URL for token generation
+const flaskAPI = 'http://127.0.0.1:5000/generate_token'; // Flask backend URL for token generation
 
 function VoiceCall() {
   const [localStream, setLocalStream] = useState(null);
@@ -25,8 +25,8 @@ function VoiceCall() {
     setRoomID(roomID);
     setUserID(userID);
 
-    console.log('Room ID:', roomID);
-    console.log('User ID:', userID);
+    alert('Room ID: ' + roomID);
+    alert('User ID: ' + userID);
   }, []);
 
   // Fetch token from the Flask backend API
@@ -34,7 +34,7 @@ function VoiceCall() {
     const data = {
       app_id: appID,
       user_id: userID,
-      secret: '2789558855af8a2142b484a04485155b',  // Provide the secret key
+      secret: 'your_secret_key_here',  // Provide the secret key
       effective_time_in_seconds: 3600,  // Token validity in seconds
       room_id: roomID,
       privilege: {
@@ -61,7 +61,7 @@ function VoiceCall() {
         return null;
       }
     } catch (error) {
-      console.error("Error fetching token:", error);
+      alert("Error fetching token: " + error);
       return null;
     }
   };
@@ -77,12 +77,12 @@ function VoiceCall() {
           }
         }
       } catch (error) {
-        console.error("Error during Zego initialization:", error);
+        alert("Error during Zego initialization: " + error);
       }
     };
-  
+
     initZego();
-  
+
     return () => {
       if (zg.current) {
         zg.current.logoutRoom(roomID); 
@@ -105,40 +105,21 @@ function VoiceCall() {
 
   const startLocalStream = async () => {
     try {
-      // Check if localStream already exists to prevent reinitialization
-      if (localStream) {
-        alert('Local stream already exists');
-        return;
-      }
-  
-      // Create a local stream
       const localStream = await zg.current.createStream();
       alert('Local stream created');
-  
-      // Check for permissions (if permissions are denied, it can cause issues)
-      if (!localStream) {
-        alert('No local stream available');
-        return;
-      }
-  
-      // Play the local stream on the video element
+      
       const localVideoElement = document.querySelector("#local-video");
       localStream.playVideo(localVideoElement);
-  
-      // Start publishing the local stream
+      
       const streamID = new Date().getTime().toString();
-      await zg.current.startPublishingStream(streamID, localStream);
+      zg.current.startPublishingStream(streamID, localStream);
       alert('Started publishing local stream');
-  
-      // Update the state with the new local stream
+      
       setLocalStream(localStream);
-  
     } catch (error) {
-      console.error('Error creating or publishing local stream:', error);
-      alert(`Error creating or publishing local stream: ${JSON.stringify(error)}`);
+      alert(`Error creating or publishing local stream: ${error}`);
     }
   };
-  
 
   useEffect(() => {
     const handleStreamUpdate = async (roomID, updateType, streamList) => {
