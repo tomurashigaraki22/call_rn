@@ -42,29 +42,30 @@ function VoiceCall() {
         "2": 1,
       }
     };
-
+  
     try {
-      const response = await fetch(flaskAPI, {
+      const response = await fetch('http://192.168.0.253:1245/generate_token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
       });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        return result.token; // Return the generated token
-      } else {
+  
+      if (!response.ok) {
+        const result = await response.json();
         alert(`Error generating token: ${result.error_message}`);
         return null;
       }
+  
+      const result = await response.json();
+      return result.token;  // Return the generated token
     } catch (error) {
-      alert("Error fetching token: " + error);
+      alert("Error fetching token: " + error.message);
       return null;
     }
   };
+  
 
   useEffect(() => {
     const initZego = async () => {
