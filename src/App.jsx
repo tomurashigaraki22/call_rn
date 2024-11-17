@@ -106,8 +106,7 @@ function VoiceCall() {
         alert("EE");
 
         // Find the local audio element and play it
-        const localAudioElement = document.querySelector("#local-audio");
-        localStream.playAudio(localAudioElement);
+
 
         alert("EEE");
     
