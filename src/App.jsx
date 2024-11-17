@@ -111,7 +111,14 @@ function VoiceCall() {
         alert("EEE");
     
         const streamID = new Date().getTime().toString();
-        const publishResult = await zg.current.startPublishingStream(streamID, localStream);
+        try {
+          const publishResult = await zg.current.startPublishingStream(streamID, localStream);
+          console.log('Publish result:', publishResult); // Check what it returns
+        } catch (error) {
+          console.error('Error publishing stream:', error);
+          alert('Error publishing stream: ' + JSON.stringify(error));
+        }
+        
         alert("####EEE");
         alert("Publish result: ", JSON.stringify(publishResult));
         console.log('Publish result:', publishResult);
