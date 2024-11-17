@@ -16,7 +16,6 @@ function VoiceCall() {
   const [userID, setUserID] = useState(null);
   const zg = useRef(null);
 
-  // Extract roomID and userID from the URL query parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const roomID = urlParams.get('roomID');
@@ -29,26 +28,20 @@ function VoiceCall() {
     alert('User ID: ' + userID);
   }, []);
 
-  // Fetch token from the Flask backend API
   const fetchToken = async (roomID, userID) => {
     const data = {
       app_id: appID,
       user_id: userID,
-      secret: '2789558855af8a2142b484a04485155b',  // Provide the secret key
-      effective_time_in_seconds: 3600,  // Token validity in seconds
+      secret: '2789558855af8a2142b484a04485155b',
+      effective_time_in_seconds: 3600,
       room_id: roomID,
-      privilege: {
-        "1": 1,
-        "2": 1,
-      }
+      privilege: { "1": 1, "2": 1 }
     };
   
     try {
       const response = await fetch('https://dropserver.onrender.com/generate_token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
   
@@ -59,13 +52,12 @@ function VoiceCall() {
       }
   
       const result = await response.json();
-      return result.token;  // Return the generated token
+      return result.token;
     } catch (error) {
       alert("Error fetching token: " + error.message);
       return null;
     }
   };
-  
 
   useEffect(() => {
     const initZego = async () => {
@@ -86,7 +78,7 @@ function VoiceCall() {
 
     return () => {
       if (zg.current) {
-        zg.current.logoutRoom(roomID); 
+        zg.current.logoutRoom(roomID);
       }
     };
   }, [roomID, userID]);
@@ -112,26 +104,27 @@ function VoiceCall() {
       
       if (localStream) {
         alert("EE");
-        
-        // Removed the playAudio part as it's not needed for audio-only streams in Zego
+
+        // Find the local audio element and play it
+        const localAudioElement = document.querySelector("#local-audio");
+        localStream.playAudio(localAudioElement);
+
         alert("EEE");
     
         const streamID = new Date().getTime().toString();
         const publishResult = await zg.current.startPublishingStream(streamID, localStream);
         alert("####EEE");
-        console.log('Publish result:', publishResult);  // Add this for debugging
+        alert("Publish result: ", publishResult);
+        console.log('Publish result:', publishResult);
     
         alert('Started publishing local audio stream');
         setLocalStream(localStream);
       }
     } catch (error) {
-      console.error('Error creating or publishing local audio stream:', error);  // Detailed error logging
+      console.error('Error creating or publishing local audio stream:', error);
       alert(`Error creating or publishing stream: ${JSON.stringify(error)}`);
     }
   };
-  
-  
-  
 
   useEffect(() => {
     const handleStreamUpdate = async (roomID, updateType, streamList) => {
@@ -140,6 +133,13 @@ function VoiceCall() {
           try {
             setRemoteStreams((prev) => [...prev, stream.streamID]);
             alert(`Remote stream added: ${stream.streamID}`);
+
+            // Find the remote audio element and play the stream
+            const remoteAudioElement = document.createElement('audio');
+            remoteAudioElement.id = `remote-audio-${stream.streamID}`;
+            remoteAudioElement.autoplay = true;
+            document.body.appendChild(remoteAudioElement); // You can append it elsewhere in your UI
+            stream.playAudio(remoteAudioElement);
           } catch (error) {
             alert(`Error playing remote stream: ${error}`);
           }
@@ -153,7 +153,7 @@ function VoiceCall() {
 
     return () => {
       if (zg.current) {
-        zg.current.off('roomStreamUpdate', handleStreamUpdate); 
+        zg.current.off('roomStreamUpdate', handleStreamUpdate);
       }
     };
   }, []);
@@ -222,8 +222,8 @@ function VoiceCall() {
         </button>
       </div>
 
-      <div id="local-audio" className="local-audio" />
-      </div>
+      <audio id="local-audio" className="local-audio" />
+    </div>
   );
 }
 
