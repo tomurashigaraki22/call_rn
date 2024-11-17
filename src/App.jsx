@@ -118,7 +118,7 @@ function VoiceCall() {
       
       setLocalStream(localStream);
     } catch (error) {
-      alert(`Error creating or publishing local stream: ${error}`);
+      alert(`Error creating or publishing local stream: ${JSON.stringify(error)}`);
     }
   };
 
