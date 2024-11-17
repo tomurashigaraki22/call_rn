@@ -11,7 +11,7 @@ function VoiceCall() {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true); // Default to video enabled
   const [roomID, setRoomID] = useState(null);
   const [userID, setUserID] = useState(null);
   const zg = useRef(null);
@@ -98,49 +98,48 @@ function VoiceCall() {
 
   const startLocalStream = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      alert('Local audio stream created');
+      // Request both audio and video
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      alert('Local audio and video stream created');
       console.log(mediaStream); // Check the stream object
   
       // Wrap the media stream in Zego's stream object
-      const localStream = await zg.current.createStreamFromMediaStream(mediaStream);
+      const localStream = await zg.current.createStream({ audio: true, video: true});
       const streamID = new Date().getTime().toString();
       const publishResult = await zg.current.startPublishingStream(streamID, localStream);
   
       if (publishResult) {
-        alert('Started publishing local audio stream: ', JSON.stringify(localStream));
+        alert('Started publishing local audio and video stream');
         setLocalStream(localStream);
       } else {
-        console.error('Failed to publish local audio stream');
+        console.error('Failed to publish local stream');
       }
     } catch (error) {
-      console.error('Error creating or publishing local audio stream:', error);
+      console.error('Error creating or publishing local stream:', error);
       alert(`Error creating or publishing stream: ${error.message}`);
     }
   };
-  
 
   useEffect(() => {
     const handleStreamUpdate = async (roomID, updateType, streamList) => {
-      alert("WWW", JSON.stringify(streamList))
       if (updateType === 'ADD') {
         streamList.forEach(async (stream) => {
           try {
             setRemoteStreams((prev) => [...prev, stream.streamID]);
             alert(`Remote stream added: ${stream.streamID}`);
 
-            // Find the remote audio element and play the stream
-            const remoteAudioElement = document.createElement('audio');
-            remoteAudioElement.id = `remote-audio-${stream.streamID}`;
-            remoteAudioElement.autoplay = true;
-            document.body.appendChild(remoteAudioElement); // You can append it elsewhere in your UI
-            stream.playAudio(remoteAudioElement);
+            // Create a video element for remote stream
+            const remoteVideoElement = document.createElement('video');
+            remoteVideoElement.id = `remote-video-${stream.streamID}`;
+            remoteVideoElement.autoplay = true;
+            remoteVideoElement.controls = true;
+            document.body.appendChild(remoteVideoElement); // You can append it elsewhere in your UI
+            stream.playVideo(remoteVideoElement);
           } catch (error) {
             alert(`Error playing remote stream: ${error}`);
           }
         });
       }
-      alert("Remote found but not add")
     };
 
     if (zg.current) {
@@ -196,6 +195,20 @@ function VoiceCall() {
         <div className="local-stream-circle">
           <p>{userID}</p>
         </div>
+        {/* Display Local Video */}
+        {localStream && (
+          <video
+            id="local-video"
+            className="local-video"
+            autoPlay
+            muted
+            ref={(video) => {
+              if (video && localStream) {
+                video.srcObject = localStream.mediaStream; // Attach local stream to video element
+              }
+            }}
+          />
+        )}
       </div>
 
       <div className="call-area">
