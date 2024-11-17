@@ -124,6 +124,7 @@ function VoiceCall() {
 
     
         alert('Started publishing local audio stream');
+        alert("localstream", localStream)
         setLocalStream(localStream);
       }
     } catch (error) {
