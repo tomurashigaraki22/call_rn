@@ -113,7 +113,7 @@ function VoiceCall() {
         const streamID = new Date().getTime().toString();
         const publishResult = await zg.current.startPublishingStream(streamID, localStream);
         alert("####EEE");
-        alert("Publish result: ", publishResult);
+        alert("Publish result: ", JSON.stringify(publishResult));
         console.log('Publish result:', publishResult);
     
         alert('Started publishing local audio stream');
