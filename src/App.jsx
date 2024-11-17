@@ -112,6 +112,7 @@ function VoiceCall() {
     
         const streamID = new Date().getTime().toString();
         try {
+          alert("SS: ", JSON.stringify(localStream))
           const publishResult = await zg.current.startPublishingStream(streamID, localStream);
           console.log('Publish result:', publishResult); // Check what it returns
         } catch (error) {
@@ -151,6 +152,7 @@ function VoiceCall() {
           }
         });
       }
+      alert("Remote found but not add")
     };
 
     if (zg.current) {
