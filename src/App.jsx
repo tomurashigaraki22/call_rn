@@ -44,7 +44,7 @@ function VoiceCall() {
     };
   
     try {
-      const response = await fetch('http://192.168.0.253:1245/generate_token', {
+      const response = await fetch('https://dropserver.onrender.com/generate_token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
