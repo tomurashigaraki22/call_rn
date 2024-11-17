@@ -98,42 +98,27 @@ function VoiceCall() {
 
   const startLocalStream = async () => {
     try {
-      // Request audio-only stream
-      const localStream = await zg.current.createStream({ audio: true, video: false });
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       alert('Local audio stream created');
-      
-      if (localStream) {
-        alert("Localstream: ", localStream)
-        alert("LOCAL: ", JSON.stringify(localStream))
-        alert("EE");
-
-        // Find the local audio element and play it
-
-
-        alert("EEE");
-    
-        const streamID = new Date().getTime().toString();
-        try {
-          alert("SS: ", JSON.stringify(localStream))
-          const publishResult = await zg.current.startPublishingStream(streamID, localStream);
-          console.log('Publish result:', publishResult); // Check what it returns
-        } catch (error) {
-          console.error('Error publishing stream:', error);
-          alert('Error publishing stream: ' + JSON.stringify(error));
-        }
-        
-        alert("####EEE");
-
-    
+      console.log(mediaStream); // Check the stream object
+  
+      // Wrap the media stream in Zego's stream object
+      const localStream = await zg.current.createStreamFromMediaStream(mediaStream);
+      const streamID = new Date().getTime().toString();
+      const publishResult = await zg.current.startPublishingStream(streamID, localStream);
+  
+      if (publishResult) {
         alert('Started publishing local audio stream');
-        alert("localstream", localStream)
         setLocalStream(localStream);
+      } else {
+        console.error('Failed to publish local audio stream');
       }
     } catch (error) {
       console.error('Error creating or publishing local audio stream:', error);
-      alert(`Error creating or publishing stream: ${JSON.stringify(error)}`);
+      alert(`Error creating or publishing stream: ${error.message}`);
     }
   };
+  
 
   useEffect(() => {
     const handleStreamUpdate = async (roomID, updateType, streamList) => {
