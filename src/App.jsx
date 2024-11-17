@@ -111,18 +111,16 @@ function VoiceCall() {
       alert('Local audio stream created');
       
       if (localStream) {
-        // Find the audio element to play the local stream
-        alert("EE")
-        const localAudioElement = document.querySelector("#local-audio");
-        alert("EEE")
-        localStream.playAudio(localAudioElement);
-        alert("EEEE")
-  
+        alert("EE");
+        
+        // Removed the playAudio part as it's not needed for audio-only streams in Zego
+        alert("EEE");
+    
         const streamID = new Date().getTime().toString();
         const publishResult = await zg.current.startPublishingStream(streamID, localStream);
-        alert("####EEE")
+        alert("####EEE");
         console.log('Publish result:', publishResult);  // Add this for debugging
-  
+    
         alert('Started publishing local audio stream');
         setLocalStream(localStream);
       }
@@ -131,6 +129,8 @@ function VoiceCall() {
       alert(`Error creating or publishing stream: ${JSON.stringify(error)}`);
     }
   };
+  
+  
   
 
   useEffect(() => {
