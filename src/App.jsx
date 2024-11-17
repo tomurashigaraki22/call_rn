@@ -5,7 +5,7 @@ import './App.css';
 
 const appID = 610181119; // Your AppID
 const serverURL = 'wss://webliveroom610181119-api.coolzcloud.com/ws'; // Your Server URL
-const flaskAPI = 'http://127.0.0.1:5000/generate_token'; // Flask backend URL for token generation
+const flaskAPI = 'http://192.168.0.253:1245/generate_token'; // Flask backend URL for token generation
 
 function VoiceCall() {
   const [localStream, setLocalStream] = useState(null);
@@ -34,7 +34,7 @@ function VoiceCall() {
     const data = {
       app_id: appID,
       user_id: userID,
-      secret: 'your_secret_key_here',  // Provide the secret key
+      secret: '2789558855af8a2142b484a04485155b',  // Provide the secret key
       effective_time_in_seconds: 3600,  // Token validity in seconds
       room_id: roomID,
       privilege: {
