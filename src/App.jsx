@@ -103,6 +103,8 @@ function VoiceCall() {
       alert('Local audio stream created');
       
       if (localStream) {
+        alert("Localstream: ", localStream)
+        alert("LOCAL: ", JSON.stringify(localStream))
         alert("EE");
 
         // Find the local audio element and play it
