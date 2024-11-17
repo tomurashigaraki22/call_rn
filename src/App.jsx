@@ -108,7 +108,7 @@ function VoiceCall() {
       const publishResult = await zg.current.startPublishingStream(streamID, localStream);
   
       if (publishResult) {
-        alert('Started publishing local audio stream');
+        alert('Started publishing local audio stream: ', JSON.stringify(localStream));
         setLocalStream(localStream);
       } else {
         console.error('Failed to publish local audio stream');
