@@ -134,6 +134,7 @@ function VoiceCall() {
 
   useEffect(() => {
     const handleStreamUpdate = async (roomID, updateType, streamList) => {
+      alert("WWW", JSON.stringify(streamList))
       if (updateType === 'ADD') {
         streamList.forEach(async (stream) => {
           try {
