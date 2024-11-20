@@ -3,7 +3,10 @@ import io from "socket.io-client";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaUserCircle } from "react-icons/fa";
 import "./App.css";
 
-const socket = io("ws://192.168.0.253:1245"); // Replace with your backend URL
+const socket = io("ws://192.168.0.253:1245", {
+  reconnectionAttempts: 5,
+  timeout: 10000
+}); // Replace with your backend URL
 
 function VoiceCall() {
   const [isMuted, setIsMuted] = useState(false);
@@ -57,60 +60,72 @@ function VoiceCall() {
   
 
   useEffect(() => {
-    if (!params) return
+    if (!params) return;
 
-    socket.on("connect", (data) => {
-      alert("Connected to socket io successfully")
-      if (params.whoCalling === 'Driver'){
-        socket.emit("register_user", {
-          email: params.driverEmail
-        })
-      } else{
-        socket.emit("register_user", {
-          email: params.userId
-        })
-      }
-        
-    })
+    socket.on("connect", () => {
+      console.log("Connected to socket.io successfully");
+      const email = params.whoCalling === "Driver" ? params.driverEmail : params.userId;
+      socket.emit("register_user", { email });
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+      setCallStatus("Error: Could not connect to server");
+    });
+
+    socket.on("reconnect", (attempt) => {
+      console.log(`Reconnected after ${attempt} attempts`);
+      const email = params.whoCalling === "Driver" ? params.driverEmail : params.userId;
+      socket.emit("register_user", { email });
+    });
 
     socket.on("error", (data) => {
-      alert("An error occurred: ", data.message)
-    })
+      console.error("An error occurred:", data.message);
+    });
 
     socket.on("signal_ack", (data) => {
-      alert("Signal Acknowledge: ", data.status)
-    })
+      console.log("Signal Acknowledged:", data.status);
+    });
 
     socket.on("signal", async (data) => {
-      alert("Signal goten")
       const { description, candidate } = data;
 
-      if (description) {
-        setCallStatus("Connecting...");
-        await peerConnection.current.setRemoteDescription(
-          new RTCSessionDescription(description)
-        );
+      try {
+        if (description) {
+          setCallStatus("Connecting...");
+          await peerConnection.current.setRemoteDescription(
+            new RTCSessionDescription(description)
+          );
 
-        if (description.type === "offer" && !fromAccept) {
-          // Handle new offer
-          const answer = await peerConnection.current.createAnswer();
-          await peerConnection.current.setLocalDescription(answer);
-          socket.emit("signal", {
-            description: peerConnection.current.localDescription,
-            email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId
-          });
-        } else if (description.type === "answer") {
-          setCallStatus("In Call");
+          if (description.type === "offer") {
+            const answer = await peerConnection.current.createAnswer();
+            await peerConnection.current.setLocalDescription(answer);
+            socket.emit("signal", {
+              description: peerConnection.current.localDescription,
+              email: params.whoCalling === "Driver" ? params.driverEmail : params.userId,
+            });
+          } else if (description.type === "answer") {
+            setCallStatus("In Call");
+          }
+        } else if (candidate) {
+          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
         }
-      } else if (candidate) {
-        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.error("Error handling signal:", error);
       }
     });
 
     return () => {
+      console.log("Cleaning up socket listeners...");
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.off("reconnect");
+      socket.off("error");
+      socket.off("signal_ack");
+      socket.off("signal");
       socket.disconnect();
     };
-  }, [fromAccept, params]);
+  }, [params]);
 
   const startCall = async () => {
     // Check if navigator.mediaDevices is available
