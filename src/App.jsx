@@ -61,7 +61,7 @@ function VoiceCall() {
       alert("Connected to socket.io successfully");
       console.log("Connected successfuly")
       const email = params.whoCalling === "Driver" ? params.driverEmail : params.userId;
-      socket.emit("register_user", { email });
+      socket.emit("register_user", { email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId });
     });
 
     socket.on("connect_error", (error) => {
