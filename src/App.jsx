@@ -21,23 +21,52 @@ function VoiceCall() {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
 
+  useEffect(() => {
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          email,
+          driverEmail,
+          roomId,
+          whoCalling,
+          fromAccept,
+        })
+      );
+    }
+  }, []); // Depend on relevant states
+  
+
   // Capture data from the message sent by WebView
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const email = urlParams.get("email");
-    const driverEmail = urlParams.get("driverEmail");
-    const roomId = urlParams.get("roomId");
-    const whoCalling = urlParams.get("whoCalling");
-    const fromAccept = urlParams.get("fromAccept");
-
-    setEmail(email || "");
-    setDriverEmail(driverEmail || "");
-    setRoomId(roomId || "");
-    setWhoCalling(whoCalling || "Unknown Caller");
-    setfromAccept(fromAccept === "true"); // Convert fromAccept to boolean
-
-    alert("URL Params:", { email, driverEmail, roomId, whoCalling, fromAccept });
+    
+    const interval = setInterval(() => {
+      const email = window.email || "";
+      const driverEmail = window.driverEmail || "";
+      const roomId = window.roomId || "";
+      const whoCalling = window.whoCalling || "Unknown Caller";
+      const fromAccept = window.fromAccept;
+  
+      // If values are set, stop the interval
+      if (email && driverEmail && roomId && whoCalling !== undefined) {
+        clearInterval(interval);
+  
+        // Update state
+        setEmail(email);
+        setDriverEmail(driverEmail);
+        setRoomId(roomId);
+        setWhoCalling(whoCalling);
+        setfromAccept(fromAccept);
+  
+        // Log to console
+        alert("Injected JS values:", email, driverEmail, roomId, whoCalling, fromAccept);
+      }
+    }, 100); // Check every 100ms (adjust as needed)
+  
+    // Cleanup interval when component is unmounted
+    return () => clearInterval(interval);
   }, []);
+  
+  
 
   useEffect(() => {
     socket.on("signal", async (data) => {
@@ -160,8 +189,8 @@ function VoiceCall() {
 
         {/* Start or Accept Call */}
         <button
-          onClick={fromAccept ? startCall : endCall} // Determine the action based on fromAccept
-          className={fromAccept ? "control-button green-bg" : "control-button red-bg"}>
+          onClick={startCall} // Determine the action based on fromAccept
+          className={fromAccept ? "control-button green-bg" : "control-button green-bg"}>
           <FaPhoneAlt className="control-icon white" />
         </button>
 
