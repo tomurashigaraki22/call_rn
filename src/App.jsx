@@ -33,7 +33,6 @@ function VoiceCall() {
 
       } else {
         console.log('Injected values not found or empty');
-        alert('Injected values not found or empty');
       }
     }
 
@@ -61,9 +60,24 @@ function VoiceCall() {
     if (!params) return
 
     socket.on("connect", (data) => {
-      socket.emit("register_user", {
-        email: params.userId
-      })
+      if (params.whoCalling === 'Driver'){
+        socket.emit("register_user", {
+          email: params.driverEmail
+        })
+      } else{
+        socket.emit("register_user", {
+          email: params.userId
+        })
+      }
+        
+    })
+
+    socket.on("error", (data) => {
+      alert("An error occurred: ", data.message)
+    })
+
+    socket.on("signal_ack", (data) => {
+      alert("Signal Acknowledge: ", data.status)
     })
 
     socket.on("signal", async (data) => {
@@ -81,6 +95,7 @@ function VoiceCall() {
           await peerConnection.current.setLocalDescription(answer);
           socket.emit("signal", {
             description: peerConnection.current.localDescription,
+            email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId
           });
         } else if (description.type === "answer") {
           setCallStatus("In Call");
@@ -126,6 +141,8 @@ function VoiceCall() {
         // Emit the signal to the server
         socket.emit("signal", {
           description: peerConnection.current.localDescription,
+          email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId
+
         });
 
         setCallStatus("Calling...");
