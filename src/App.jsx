@@ -13,6 +13,7 @@ function VoiceCall() {
   const [whoCalling, setWhoCalling] = useState("");
   const [fromAccept, setfromAccept] = useState(null);
   const [roomId, setRoomId] = useState("");
+  const [params, setParams] = useState(null)
 
   const peerConnection = useRef(null);
   const localStream = useRef(null);
@@ -22,53 +23,49 @@ function VoiceCall() {
   };
 
   useEffect(() => {
-    if (window.ReactNativeWebView) {
-      window.ReactNativeWebView.postMessage(
-        JSON.stringify({
-          email,
-          driverEmail,
-          roomId,
-          whoCalling,
-          fromAccept,
-        })
-      );
+    function handleInjectedValues() {
+      if (window.INJECTED_VALUES && Object.keys(window.INJECTED_VALUES).length > 0) {
+        setParams(window.INJECTED_VALUES);
+        
+        // Log the injected values for debugging
+        console.log('Injected values:', window.INJECTED_VALUES);
+        
+
+      } else {
+        console.log('Injected values not found or empty');
+        alert('Injected values not found or empty');
+      }
     }
-  }, []); // Depend on relevant states
-  
+
+    if (document.readyState === 'complete') {
+      handleInjectedValues();
+    } else {
+      window.addEventListener('load', handleInjectedValues);
+    }
+
+    document.addEventListener('injectedValuesReady', handleInjectedValues);
+
+    return () => {
+      window.removeEventListener('load', handleInjectedValues);
+      document.removeEventListener('injectedValuesReady', handleInjectedValues);
+    };
+  }, []);
+
+
 
   // Capture data from the message sent by WebView
-  useEffect(() => {
-    
-    const interval = setInterval(() => {
-      const email = window.email || "";
-      const driverEmail = window.driverEmail || "";
-      const roomId = window.roomId || "";
-      const whoCalling = window.whoCalling || "Unknown Caller";
-      const fromAccept = window.fromAccept;
-  
-      // If values are set, stop the interval
-      if (email && driverEmail && roomId && whoCalling !== undefined) {
-        clearInterval(interval);
-  
-        // Update state
-        setEmail(email);
-        setDriverEmail(driverEmail);
-        setRoomId(roomId);
-        setWhoCalling(whoCalling);
-        setfromAccept(fromAccept);
-  
-        // Log to console
-        alert("Injected JS values:", email, driverEmail, roomId, whoCalling, fromAccept);
-      }
-    }, 100); // Check every 100ms (adjust as needed)
-  
-    // Cleanup interval when component is unmounted
-    return () => clearInterval(interval);
-  }, []);
-  
+
   
 
   useEffect(() => {
+    if (!params) return
+
+    socket.on("connect", (data) => {
+      socket.emit("register_user", {
+        email: params.userId
+      })
+    })
+
     socket.on("signal", async (data) => {
       const { description, candidate } = data;
 
@@ -96,7 +93,7 @@ function VoiceCall() {
     return () => {
       socket.disconnect();
     };
-  }, [fromAccept]);
+  }, [fromAccept, params]);
 
   const startCall = async () => {
     // Check if navigator.mediaDevices is available
@@ -168,7 +165,7 @@ function VoiceCall() {
     <div className="call-screen">
       {/* Caller Info */}
       <div className="caller-info">
-        <div className="caller-name">{whoCalling || "Unknown Caller"}</div>
+        <div className="caller-name">{params.whoCalling || "Unknown Caller"}</div>
         <div className="call-status">{callStatus}</div>
       </div>
 
