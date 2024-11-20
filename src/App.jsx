@@ -165,7 +165,7 @@ function VoiceCall() {
     <div className="call-screen">
       {/* Caller Info */}
       <div className="caller-info">
-        <div className="caller-name">{params.whoCalling || "Unknown Caller"}</div>
+        <div className="caller-name">{params !== null ? params.whoCalling : "Unknown Caller"}</div>
         <div className="call-status">{callStatus}</div>
       </div>
 
