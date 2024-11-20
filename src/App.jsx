@@ -81,6 +81,7 @@ function VoiceCall() {
     })
 
     socket.on("signal", async (data) => {
+      alert("Signal goten")
       const { description, candidate } = data;
 
       if (description) {
