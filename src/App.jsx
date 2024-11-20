@@ -3,7 +3,7 @@ import io from "socket.io-client";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaUserCircle } from "react-icons/fa";
 import "./App.css";
 
-const socket = io("wss://dropserver.onrender.com"); // Replace with your backend URL
+const socket = io("ws://192.168.0.253:1245"); // Replace with your backend URL
 
 function VoiceCall() {
   const [isMuted, setIsMuted] = useState(false);
