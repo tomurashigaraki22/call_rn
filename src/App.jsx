@@ -49,7 +49,7 @@ function VoiceCall() {
   // Socket connection and signal handling
   useEffect(() => {
 
-    const socket = io("ws://192.168.0.253:1245", {
+    const socket = io("wss://dropserver.onrender.com", {
       reconnectionAttempts: 5,
       timeout: 10000,
     });
