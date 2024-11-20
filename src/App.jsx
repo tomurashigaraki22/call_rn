@@ -60,6 +60,7 @@ function VoiceCall() {
     if (!params) return
 
     socket.on("connect", (data) => {
+      alert("Connected to socket io successfully")
       if (params.whoCalling === 'Driver'){
         socket.emit("register_user", {
           email: params.driverEmail
