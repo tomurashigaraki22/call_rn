@@ -129,6 +129,7 @@ function VoiceCall() {
 
         // Handle ICE candidates
         peerConnection.current.onicecandidate = ({ candidate }) => {
+          alert("A: ", candidate)
           if (candidate) {
             socket.emit("signal", { candidate });
           }
