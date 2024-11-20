@@ -5,13 +5,13 @@ import "./App.css";
 
 const socket = io("http://192.168.0.253:1245"); // Replace with your backend URL
 
-function VoiceCall() {  // Accept fromAccept as a prop
+function VoiceCall() {
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Idle");
   const [email, setEmail] = useState("");
   const [driverEmail, setDriverEmail] = useState("");
   const [whoCalling, setWhoCalling] = useState("");
-  const [fromAccept, setfromAccept] = useState(null)
+  const [fromAccept, setfromAccept] = useState(null);
   const [roomId, setRoomId] = useState("");
 
   const peerConnection = useRef(null);
@@ -21,48 +21,52 @@ function VoiceCall() {  // Accept fromAccept as a prop
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   };
 
-  // Extract parameters from URL
+  // Capture data from the message sent by WebView
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setEmail(params.get("email"));
-    setDriverEmail(params.get("driverEmail"));
-    setWhoCalling(params.get("whoCalling"));
-    setRoomId(params.get("roomId"));
-    setfromAccept(params.get("fromAccept"))
+    const urlParams = new URLSearchParams(window.location.search);
+    const email = urlParams.get("email");
+    const driverEmail = urlParams.get("driverEmail");
+    const roomId = urlParams.get("roomId");
+    const whoCalling = urlParams.get("whoCalling");
+    const fromAccept = urlParams.get("fromAccept");
+
+    setEmail(email || "");
+    setDriverEmail(driverEmail || "");
+    setRoomId(roomId || "");
+    setWhoCalling(whoCalling || "Unknown Caller");
+    setfromAccept(fromAccept === "true"); // Convert fromAccept to boolean
+
+    alert("URL Params:", { email, driverEmail, roomId, whoCalling, fromAccept });
   }, []);
 
   useEffect(() => {
-    if (fromAccept !== null){
-      socket.on("signal", async (data) => {
-        const { description, candidate } = data;
-  
-        if (description) {
-          setCallStatus("Connecting...");
-          await peerConnection.current.setRemoteDescription(
-            new RTCSessionDescription(description)
-          );
-  
-          if (description.type === "offer" && !fromAccept) { // Handle new offer
-            const answer = await peerConnection.current.createAnswer();
-            await peerConnection.current.setLocalDescription(answer);
-            socket.emit("signal", {
-              description: peerConnection.current.localDescription,
-            });
-          } else if (description.type === "answer") {
-            setCallStatus("In Call");
-          }
-        } else if (candidate) {
-          await peerConnection.current.addIceCandidate(
-            new RTCIceCandidate(candidate)
-          );
+    socket.on("signal", async (data) => {
+      const { description, candidate } = data;
+
+      if (description) {
+        setCallStatus("Connecting...");
+        await peerConnection.current.setRemoteDescription(
+          new RTCSessionDescription(description)
+        );
+
+        if (description.type === "offer" && !fromAccept) {
+          // Handle new offer
+          const answer = await peerConnection.current.createAnswer();
+          await peerConnection.current.setLocalDescription(answer);
+          socket.emit("signal", {
+            description: peerConnection.current.localDescription,
+          });
+        } else if (description.type === "answer") {
+          setCallStatus("In Call");
         }
-      });
-  
-      return () => {
-        socket.disconnect();
-      };
-    }
-    
+      } else if (candidate) {
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [fromAccept]);
 
   const startCall = async () => {
@@ -73,31 +77,31 @@ function VoiceCall() {  // Accept fromAccept as a prop
         localStream.current = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
-  
+
         // Set up the peer connection
         peerConnection.current = new RTCPeerConnection(servers);
-  
+
         // Add media tracks to peer connection
         localStream.current.getTracks().forEach((track) => {
           peerConnection.current.addTrack(track, localStream.current);
         });
-  
+
         // Handle ICE candidates
         peerConnection.current.onicecandidate = ({ candidate }) => {
           if (candidate) {
             socket.emit("signal", { candidate });
           }
         };
-  
+
         // Create offer and set local description
         const offer = await peerConnection.current.createOffer();
         await peerConnection.current.setLocalDescription(offer);
-        
+
         // Emit the signal to the server
         socket.emit("signal", {
           description: peerConnection.current.localDescription,
         });
-  
+
         setCallStatus("Calling...");
       } catch (error) {
         console.error("Error accessing media devices:", error);
@@ -155,7 +159,7 @@ function VoiceCall() {  // Accept fromAccept as a prop
         </button>
 
         {/* Start or Accept Call */}
-        <button 
+        <button
           onClick={fromAccept ? startCall : endCall} // Determine the action based on fromAccept
           className={fromAccept ? "control-button green-bg" : "control-button red-bg"}>
           <FaPhoneAlt className="control-icon white" />
