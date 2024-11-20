@@ -147,7 +147,7 @@ function VoiceCall() {
         // Handle ICE candidates
         peerConnection.current.onicecandidate = ({ candidate }) => {
           if (candidate) {
-            newSocket.emit("signal", { candidate });
+            newSocket.emit("signal", { candidate, email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId });
           }
         };
 
