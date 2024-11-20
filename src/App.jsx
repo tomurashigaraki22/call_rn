@@ -3,7 +3,7 @@ import io from "socket.io-client";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaUserCircle } from "react-icons/fa";
 import "./App.css";
 
-const socket = io("http://192.168.0.253:1245"); // Replace with your backend URL
+const socket = io("https://dropserver.onrender.com"); // Replace with your backend URL
 
 function VoiceCall() {
   const [isMuted, setIsMuted] = useState(false);
@@ -131,6 +131,7 @@ function VoiceCall() {
         peerConnection.current.onicecandidate = ({ candidate }) => {
           alert("A: ", candidate)
           if (candidate) {
+            alert("Any candidate")
             socket.emit("signal", { candidate });
           }
         };
