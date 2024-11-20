@@ -3,20 +3,16 @@ import io from "socket.io-client";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaUserCircle } from "react-icons/fa";
 import "./App.css";
 
-const socket = io("ws://192.168.0.253:1245", {
-  reconnectionAttempts: 5,
-  timeout: 10000
-}); // Replace with your backend URL
-
 function VoiceCall() {
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Idle");
   const [email, setEmail] = useState("");
   const [driverEmail, setDriverEmail] = useState("");
   const [whoCalling, setWhoCalling] = useState("");
-  const [fromAccept, setfromAccept] = useState(null);
+  const [fromAccept, setFromAccept] = useState(null);
+  const [newSocket, setNewSocket] = useState(null);
   const [roomId, setRoomId] = useState("");
-  const [params, setParams] = useState(null)
+  const [params, setParams] = useState(null);
 
   const peerConnection = useRef(null);
   const localStream = useRef(null);
@@ -29,48 +25,50 @@ function VoiceCall() {
     function handleInjectedValues() {
       if (window.INJECTED_VALUES && Object.keys(window.INJECTED_VALUES).length > 0) {
         setParams(window.INJECTED_VALUES);
-        
         // Log the injected values for debugging
-        console.log('Injected values:', window.INJECTED_VALUES);
-        
-
+        console.log("Injected values:", window.INJECTED_VALUES);
       } else {
-        console.log('Injected values not found or empty');
+        console.log("Injected values not found or empty");
       }
     }
 
-    if (document.readyState === 'complete') {
+    if (document.readyState === "complete") {
       handleInjectedValues();
     } else {
-      window.addEventListener('load', handleInjectedValues);
+      window.addEventListener("load", handleInjectedValues);
     }
 
-    document.addEventListener('injectedValuesReady', handleInjectedValues);
+    document.addEventListener("injectedValuesReady", handleInjectedValues);
 
     return () => {
-      window.removeEventListener('load', handleInjectedValues);
-      document.removeEventListener('injectedValuesReady', handleInjectedValues);
+      window.removeEventListener("load", handleInjectedValues);
+      document.removeEventListener("injectedValuesReady", handleInjectedValues);
     };
   }, []);
 
-
-
-  // Capture data from the message sent by WebView
-
-  
-
+  // Socket connection and signal handling
   useEffect(() => {
-    if (!params) return;
+
+    const socket = io("wss://dropserver.onrender.com", {
+      reconnectionAttempts: 5,
+      timeout: 10000,
+    });
+    console.log("Socket: ", socket)
+
+    setNewSocket(socket);
 
     socket.on("connect", () => {
-      console.log("Connected to socket.io successfully");
+      alert("Connected to socket.io successfully");
+      console.log("Connected successfuly")
       const email = params.whoCalling === "Driver" ? params.driverEmail : params.userId;
       socket.emit("register_user", { email });
     });
 
     socket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
-      setCallStatus("Error: Could not connect to server");
+      alert("Socket connection error:", error);
+      window.ReactNativeWebView.postMessage(JSON.stringify(error));
+      setCallStatus("Connection Error: " + error.message); // Update call status for better feedback
+      console.error("Socket connection error:", error); // Log error for debugging
     });
 
     socket.on("reconnect", (attempt) => {
@@ -80,7 +78,8 @@ function VoiceCall() {
     });
 
     socket.on("error", (data) => {
-      console.error("An error occurred:", data.message);
+      alert("An error occurred:", data.message);
+      setCallStatus("Error: " + data.message); // Update call status with received error message
     });
 
     socket.on("signal_ack", (data) => {
@@ -112,6 +111,7 @@ function VoiceCall() {
         }
       } catch (error) {
         console.error("Error handling signal:", error);
+        setCallStatus("Error handling signal: " + error.message);
       }
     });
 
@@ -125,7 +125,7 @@ function VoiceCall() {
       socket.off("signal");
       socket.disconnect();
     };
-  }, [params]);
+  }, []);
 
   const startCall = async () => {
     // Check if navigator.mediaDevices is available
@@ -146,10 +146,8 @@ function VoiceCall() {
 
         // Handle ICE candidates
         peerConnection.current.onicecandidate = ({ candidate }) => {
-          alert("A: ", candidate)
           if (candidate) {
-            alert("Any candidate")
-            socket.emit("signal", { candidate });
+            newSocket.emit("signal", { candidate });
           }
         };
 
@@ -158,10 +156,9 @@ function VoiceCall() {
         await peerConnection.current.setLocalDescription(offer);
 
         // Emit the signal to the server
-        socket.emit("signal", {
+        newSocket.emit("signal", {
           description: peerConnection.current.localDescription,
-          email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId
-
+          email: params.whoCalling === "Driver" ? params.driverEmail : params.userId,
         });
 
         setCallStatus("Calling...");
@@ -201,7 +198,7 @@ function VoiceCall() {
     <div className="call-screen">
       {/* Caller Info */}
       <div className="caller-info">
-        <div className="caller-name">{params !== null ? params.whoCalling : "Unknown Caller"}</div>
+        <div className="caller-name">{params ? params.whoCalling : "Unknown Caller"}</div>
         <div className="call-status">{callStatus}</div>
       </div>
 
@@ -222,7 +219,7 @@ function VoiceCall() {
 
         {/* Start or Accept Call */}
         <button
-          onClick={startCall} // Determine the action based on fromAccept
+          onClick={startCall}
           className={fromAccept ? "control-button green-bg" : "control-button green-bg"}>
           <FaPhoneAlt className="control-icon white" />
         </button>
