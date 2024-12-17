@@ -124,6 +124,10 @@ function VoiceCall() {
       console.log("Received remote stream: ", event);
       if (event.streams[0].getAudioTracks().length > 0) {
         console.log("Remote stream has audio track");
+        const audioTrack = event.streams[0].getAudioTracks()[0];
+        if (audioTrack.enabled){
+          alert(`It is enabled`)
+        }
         remoteVideoRef.current.srcObject = event.streams[0];
       } else {
         console.log("No audio track in remote stream");
