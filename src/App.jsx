@@ -104,11 +104,14 @@ function VoiceCall() {
 
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
+    const targetId = params?.whoCalling === "Driver" 
+        ? params.driverEmail.split("@")[0] 
+        : params.userId.split("@")[0];
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         newSocket.emit("ice-candidate", {
-          to: userId,
+          to: targetId,
           candidate: event.candidate,
         });
       }
@@ -126,8 +129,8 @@ function VoiceCall() {
     try {
       setCallStatus("Starting Call...");
       const targetId = params?.whoCalling === "Driver" 
-        ? params.userId.split("@")[0] 
-        : params.driverEmail.split("@")[0];
+        ? params.driverEmail.split("@")[0] 
+        : params.userId.split("@")[0];
 
       const pc = createPeerConnection(targetId);
       peerConnections.current[targetId] = pc;  // Store peer connection in the dictionary
