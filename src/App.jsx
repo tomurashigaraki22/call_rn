@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
-import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaUserCircle } from "react-icons/fa";
+import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaUserCircle, FaPhone } from "react-icons/fa";
 import "./App.css";
 
 function VoiceCall() {
@@ -9,6 +9,7 @@ function VoiceCall() {
   const [params, setParams] = useState(null);
   const [newSocket, setNewSocket] = useState(null);
   const [hasPermission, setHasPermission] = useState(false);
+  const [isIncomingCall, setIsIncomingCall] = useState(false); // For incoming call
   const [fromAccept, setFromAccept] = useState(false);
 
   const peerConnections = useRef({}); // Dictionary to store peer connections
@@ -38,15 +39,15 @@ function VoiceCall() {
         }
       }
     }
-  
+
     if (document.readyState === "complete") {
       handleInjectedValues();
     } else {
       window.addEventListener("load", handleInjectedValues);
     }
-  
+
     document.addEventListener("injectedValuesReady", handleInjectedValues);
-  
+
     return () => {
       window.removeEventListener("load", handleInjectedValues);
       document.removeEventListener("injectedValuesReady", handleInjectedValues);
@@ -69,16 +70,10 @@ function VoiceCall() {
     socket.on("offer", async (data) => {
       console.log("Received offer:", data);
       setCallStatus("Incoming Call...");
+      setIsIncomingCall(true); // Show the accept call button
       peerConnections.current[data.from] = createPeerConnection(data.from);
 
       await peerConnections.current[data.from].setRemoteDescription(new RTCSessionDescription(data.offer));
-      const answer = await peerConnections.current[data.from].createAnswer();
-      await peerConnections.current[data.from].setLocalDescription(answer);
-      const targetId = params?.whoCalling === "Driver" 
-        ? params.driverEmail.split("@")[0] 
-        : params.userId.split("@")[0];
-
-      socket.emit("answer", { to: targetId, answer });
     });
 
     socket.on("answer", async (data) => {
@@ -107,9 +102,9 @@ function VoiceCall() {
 
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
-    const targetId = params?.whoCalling === "Driver" 
-        ? params.driverEmail.split("@")[0] 
-        : params.userId.split("@")[0];
+    const targetId = params?.whoCalling === "Driver"
+      ? params.driverEmail.split("@")[0]
+      : params.userId.split("@")[0];
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -125,8 +120,8 @@ function VoiceCall() {
       if (event.streams[0].getAudioTracks().length > 0) {
         console.log("Remote stream has audio track");
         const audioTrack = event.streams[0].getAudioTracks()[0];
-        if (audioTrack.enabled){
-          alert(`It is enabled`)
+        if (audioTrack.enabled) {
+          alert(`It is enabled`);
         }
         remoteVideoRef.current.srcObject = event.streams[0];
       } else {
@@ -140,24 +135,25 @@ function VoiceCall() {
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
-      const targetId = params?.whoCalling === "Driver" 
-        ? params.driverEmail.split("@")[0] 
+      const targetId = params?.whoCalling === "Driver"
+        ? params.driverEmail.split("@")[0]
         : params.userId.split("@")[0];
 
       const pc = createPeerConnection(targetId);
-      peerConnections.current[targetId] = pc;  // Store peer connection in the dictionary
-  
+      peerConnections.current[targetId] = pc;
+
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      alert(`Localstream: ${localStream.current}`)
+      alert(`Localstream: ${localStream.current}`);
       localVideoRef.current.srcObject = localStream.current;
 
       localStream.current.getTracks().forEach((track) => {
+        alert(`Tracks: ${track}`);
         pc.addTrack(track, localStream.current);
       });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-  
+
       alert(`Calling ${targetId}`);
 
       newSocket.emit("offer", {
@@ -187,9 +183,24 @@ function VoiceCall() {
     }
   };
 
-  useEffect(() => {
-    requestMicrophonePermission();
-  }, []);
+  const acceptCall = async () => {
+    try {
+      setCallStatus("Call Accepted");
+      const targetId = params?.whoCalling === "Driver"
+        ? params.driverEmail.split("@")[0]
+        : params.userId.split("@")[0];
+
+      const pc = peerConnections.current[targetId];
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      newSocket.emit("answer", { to: targetId, answer });
+      setIsIncomingCall(false); // Hide the accept button after accepting
+    } catch (error) {
+      console.error("Error accepting call:", error);
+      alert("Failed to accept call.");
+    }
+  };
 
   const endCall = () => {
     Object.values(peerConnections.current).forEach((pc) => pc.close());
@@ -220,8 +231,8 @@ function VoiceCall() {
       </div>
 
       <div>
-      <audio ref={localVideoRef} autoPlay playsInline style={{ display: "none"}}/>
-      <audio ref={remoteVideoRef} autoPlay playsInline style={{ display: "none"}} />
+        <audio ref={localVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
+        <audio ref={remoteVideoRef} autoPlay playsInline style={{ display: "none" }} />
       </div>
 
       <div className="call-controls">
@@ -232,9 +243,17 @@ function VoiceCall() {
             <FaMicrophone className="control-icon white" />
           )}
         </button>
-        <button onClick={startCall} className="control-button green-bg">
-          <FaPhoneAlt className="control-icon white" />
-        </button>
+
+        {isIncomingCall ? (
+          <button onClick={acceptCall} className="control-button green-bg">
+            <FaPhone className="control-icon white" /> Accept Call
+          </button>
+        ) : (
+          <button onClick={startCall} className="control-button green-bg">
+            <FaPhoneAlt className="control-icon white" /> Start Call
+          </button>
+        )}
+
         <button onClick={endCall} className="control-button red-bg">
           <FaPhoneAlt className="control-icon white rotate-icon" />
         </button>
