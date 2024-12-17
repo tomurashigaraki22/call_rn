@@ -6,16 +6,15 @@ import "./App.css";
 function VoiceCall() {
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Idle");
-  const [email, setEmail] = useState("");
-  const [driverEmail, setDriverEmail] = useState("");
-  const [whoCalling, setWhoCalling] = useState("");
-  const [fromAccept, setFromAccept] = useState(null);
-  const [newSocket, setNewSocket] = useState(null);
-  const [roomId, setRoomId] = useState("");
   const [params, setParams] = useState(null);
+  const [newSocket, setNewSocket] = useState(null);
+  const [fromAccept, setFromAccept] = useState(false);
 
   const peerConnection = useRef(null);
   const localStream = useRef(null);
+  const remoteStream = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   const servers = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -23,166 +22,188 @@ function VoiceCall() {
 
   useEffect(() => {
     function handleInjectedValues() {
+      // Check if INJECTED_VALUES exist and are not empty
       if (window.INJECTED_VALUES && Object.keys(window.INJECTED_VALUES).length > 0) {
         setParams(window.INJECTED_VALUES);
-        // Log the injected values for debugging
         console.log("Injected values:", window.INJECTED_VALUES);
       } else {
         console.log("Injected values not found or empty");
+  
+        // Fallback to URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+  
+        // Extract specific parameters
+        const paramsObj = {
+          whoCalling: urlParams.get("whoCalling") || "",
+          driverEmail: urlParams.get("driverEmail") || "",
+          userId: urlParams.get("email") || "",
+        };
+  
+        // Set params if at least one of them is available
+        if (paramsObj.whoCalling || paramsObj.driverEmail || paramsObj.userId) {
+          setParams(paramsObj);
+          console.log("URL parameters:", paramsObj);
+        } else {
+          console.log("No valid parameters found in URL");
+        }
       }
     }
-
+  
+    // Check document readiness
     if (document.readyState === "complete") {
       handleInjectedValues();
     } else {
       window.addEventListener("load", handleInjectedValues);
     }
-
+  
+    // Listen for injected values event
     document.addEventListener("injectedValuesReady", handleInjectedValues);
-
+  
     return () => {
       window.removeEventListener("load", handleInjectedValues);
       document.removeEventListener("injectedValuesReady", handleInjectedValues);
     };
   }, []);
+  
 
-  // Socket connection and signal handling
+  // Initialize Socket.IO
   useEffect(() => {
-
     const socket = io("wss://dropserver.onrender.com", {
       reconnectionAttempts: 5,
       timeout: 10000,
     });
-    console.log("Socket: ", socket)
-
     setNewSocket(socket);
 
     socket.on("connect", () => {
       alert("Connected to socket.io successfully");
-      console.log("Connected successfuly")
-      const email = params.whoCalling === "Driver" ? params.driverEmail : params.userId;
-      socket.emit("register_user", { email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId });
-    });
-
-    socket.on("connect_error", (error) => {
-      alert("Socket connection error:", error);
-      window.ReactNativeWebView.postMessage(JSON.stringify(error));
-      setCallStatus("Connection Error: " + error.message); // Update call status for better feedback
-      console.error("Socket connection error:", error); // Log error for debugging
-    });
-
-    socket.on("reconnect", (attempt) => {
-      console.log(`Reconnected after ${attempt} attempts`);
-      const email = params.whoCalling === "Driver" ? params.driverEmail : params.userId;
+      const email = params?.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0];
       socket.emit("register_user", { email });
     });
 
-    socket.on("error", (data) => {
-      alert("An error occurred:", data.message);
-      setCallStatus("Error: " + data.message); // Update call status with received error message
+    socket.on("offer", async (data) => {
+      console.log("Received offer:", data);
+      setCallStatus("Incoming Call...");
+      peerConnection.current = createPeerConnection();
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data));
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+      socket.emit("answer", { to: data.from, answer });
     });
 
-    socket.on("signal_ack", (data) => {
-      console.log("Signal Acknowledged:", data.status);
+    socket.on("answer", async (data) => {
+      console.log("Received answer:", data);
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.answer));
     });
 
-    socket.on("signal", async (data) => {
-      const { description, candidate } = data;
-
-      try {
-        if (description) {
-          setCallStatus("Connecting...");
-          await peerConnection.current.setRemoteDescription(
-            new RTCSessionDescription(description)
-          );
-
-          if (description.type === "offer") {
-            const answer = await peerConnection.current.createAnswer();
-            await peerConnection.current.setLocalDescription(answer);
-            socket.emit("signal", {
-              description: peerConnection.current.localDescription,
-              email: params.whoCalling === "Driver" ? params.driverEmail : params.userId,
-            });
-          } else if (description.type === "answer") {
-            setCallStatus("In Call");
-          }
-        } else if (candidate) {
-          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-        }
-      } catch (error) {
-        console.error("Error handling signal:", error);
-        setCallStatus("Error handling signal: " + error.message);
+    socket.on("ice-candidate", async (data) => {
+      console.log("Received ICE candidate:", data);
+      if (peerConnection.current) {
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
       }
+    });
+
+    socket.on("error", (data) => {
+      alert("Error: " + data.message);
+      setCallStatus("Error: " + data.message);
     });
 
     return () => {
-      console.log("Cleaning up socket listeners...");
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("reconnect");
-      socket.off("error");
-      socket.off("signal_ack");
-      socket.off("signal");
       socket.disconnect();
     };
-  }, []);
+  }, [params]);
+
+  // Function to create RTCPeerConnection
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection(servers);
+  
+    const emitTarget = params?.whoCalling === "Driver" 
+      ? params.driverEmail.split("@")[0] 
+      : params.userId.split("@")[0];
+  
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        newSocket.emit("ice-candidate", {
+          to: emitTarget,
+          candidate: event.candidate,
+        });
+      }
+    };
+  
+    pc.ontrack = (event) => {
+      console.log("Received remote stream.");
+      remoteVideoRef.current.srcObject = event.streams[0];
+    };
+  
+    return pc;
+  };
+  
 
   const startCall = async () => {
-    // Check if navigator.mediaDevices is available
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        // Access user's media devices (audio)
-        localStream.current = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
+    try {
+      setCallStatus("Starting Call...");
+      peerConnection.current = createPeerConnection();
+  
+      // Get local media stream
+      localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localVideoRef.current.srcObject = localStream.current;
+  
+      localStream.current.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, localStream.current);
+      });
+  
+      const offer = await peerConnection.current.createOffer();
+      await peerConnection.current.setLocalDescription(offer);
+  
+      const emitTarget = params?.whoCalling === "Driver" 
+        ? params.driverEmail.split("@")[0] 
+        : params.userId.split("@")[0];
 
-        // Set up the peer connection
-        peerConnection.current = new RTCPeerConnection(servers);
-
-        // Add media tracks to peer connection
-        localStream.current.getTracks().forEach((track) => {
-          peerConnection.current.addTrack(track, localStream.current);
-        });
-
-        // Handle ICE candidates
-        peerConnection.current.onicecandidate = ({ candidate }) => {
-          if (candidate) {
-            newSocket.emit("signal", { candidate, email: params.whoCalling === 'Driver' ? params.driverEmail : params.userId });
-          }
-        };
-
-        // Create offer and set local description
-        const offer = await peerConnection.current.createOffer();
-        await peerConnection.current.setLocalDescription(offer);
-
-        // Emit the signal to the server
-        newSocket.emit("signal", {
-          description: peerConnection.current.localDescription,
-          email: params.whoCalling === "Driver" ? params.driverEmail : params.userId,
-        });
-
-        setCallStatus("Calling...");
-      } catch (error) {
-        console.error("Error accessing media devices:", error);
-        setCallStatus("Error: Could not access media devices");
-      }
-    } else {
-      console.error("Media devices not supported in this browser");
-      setCallStatus("Error: Media devices not supported");
+      alert(`CAlling ${emitTarget}`)
+  
+      newSocket.emit("offer", {
+        to: emitTarget,
+        from: params.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
+        offer,
+      });
+    } catch (error) {
+      console.error("Error starting call:", error);
+      alert(`Error occurred: ${error}`)
     }
   };
+
+  useEffect(() => {
+    // Request microphone permission on component mount
+    requestMicrophonePermission();
+  }, []);
+
+  const requestMicrophonePermission = async () => {
+    try {
+      // Check if getUserMedia is supported
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Stream successfully obtained
+        setLocalStream(stream);
+        setHasPermission(true);
+      } else {
+        console.error("getUserMedia is not supported in this browser.");
+        alert("Your browser does not support microphone access.");
+      }
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      alert("Please grant microphone permissions to proceed.");
+    }
+  };
+  
 
   const endCall = () => {
     if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = null;
     }
-
     if (localStream.current) {
       localStream.current.getTracks().forEach((track) => track.stop());
-      localStream.current = null;
     }
-
     setCallStatus("Call Ended");
   };
 
@@ -196,18 +217,21 @@ function VoiceCall() {
 
   return (
     <div className="call-screen">
-      {/* Caller Info */}
       <div className="caller-info">
         <div className="caller-name">{params ? params.whoCalling : "Unknown Caller"}</div>
         <div className="call-status">{callStatus}</div>
       </div>
 
-      {/* Profile Icon */}
       <div className="profile-icon">
         <FaUserCircle className="profile-icon-placeholder" />
       </div>
 
-      {/* Call Controls */}
+      {/* Local and Remote Streams */}
+      <div>
+        <video ref={localVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
+        <video ref={remoteVideoRef} autoPlay playsInline style={{ display: "none" }} />
+      </div>
+
       <div className="call-controls">
         <button onClick={toggleMute} className="control-button">
           {isMuted ? (
@@ -216,14 +240,9 @@ function VoiceCall() {
             <FaMicrophone className="control-icon white" />
           )}
         </button>
-
-        {/* Start or Accept Call */}
-        <button
-          onClick={startCall}
-          className={fromAccept ? "control-button green-bg" : "control-button green-bg"}>
+        <button onClick={startCall} className="control-button green-bg">
           <FaPhoneAlt className="control-icon white" />
         </button>
-
         <button onClick={endCall} className="control-button red-bg">
           <FaPhoneAlt className="control-icon white rotate-icon" />
         </button>
