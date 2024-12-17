@@ -63,7 +63,7 @@ function VoiceCall() {
 
     socket.on("connect", () => {
       alert("Connected to socket.io successfully");
-      const email = params?.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0];
+      const email = params?.whoCalling !== "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0];
       socket.emit("register_user", { email });
     });
 
@@ -102,7 +102,7 @@ function VoiceCall() {
 
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
-    const targetId = params?.whoCalling === "Driver"
+    const targetId = params?.whoCalling !== "Driver"
       ? params.driverEmail.split("@")[0]
       : params.userId.split("@")[0];
 
@@ -135,7 +135,7 @@ function VoiceCall() {
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
-      const targetId = params?.whoCalling === "Driver"
+      const targetId = params?.whoCalling !== "Driver"
         ? params.driverEmail.split("@")[0]
         : params.userId.split("@")[0];
 
@@ -158,7 +158,7 @@ function VoiceCall() {
 
       newSocket.emit("offer", {
         to: targetId,
-        from: params.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
+        from: params.whoCalling !== "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
         offer,
       });
     } catch (error) {
@@ -186,11 +186,12 @@ function VoiceCall() {
   const acceptCall = async () => {
     try {
       setCallStatus("Call Accepted");
-      const targetId = params?.whoCalling === "Driver"
+      const targetId = params?.whoCalling !== "Driver"
         ? params.driverEmail.split("@")[0]
         : params.userId.split("@")[0];
 
-      const pc = peerConnections.current[targetId];
+      const pc = peerConnections.current[targetId]
+      console.log("Pc: ", pc)
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -246,11 +247,11 @@ function VoiceCall() {
 
         {isIncomingCall ? (
           <button onClick={acceptCall} className="control-button green-bg">
-            <FaPhone className="control-icon white" /> Accept Call
+            <FaPhone className="control-icon white" />
           </button>
         ) : (
           <button onClick={startCall} className="control-button green-bg">
-            <FaPhoneAlt className="control-icon white" /> Start Call
+            <FaPhoneAlt className="control-icon white" />
           </button>
         )}
 
