@@ -122,8 +122,12 @@ function VoiceCall() {
 
     pc.ontrack = (event) => {
       console.log("Received remote stream: ", event);
-      alert(`Remote stream: ${event.streams[0]}`)
-      remoteVideoRef.current.srcObject = event.streams[0];
+      if (event.streams[0].getAudioTracks().length > 0) {
+        console.log("Remote stream has audio track");
+        remoteVideoRef.current.srcObject = event.streams[0];
+      } else {
+        console.log("No audio track in remote stream");
+      }
     };
 
     return pc;
@@ -212,8 +216,8 @@ function VoiceCall() {
       </div>
 
       <div>
-        <video ref={localVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
-        <video ref={remoteVideoRef} autoPlay playsInline style={{ display: "none" }} />
+      <audio ref={localVideoRef} autoPlay playsInline style={{ display: "none"}}/>
+      <audio ref={remoteVideoRef} autoPlay playsInline style={{ display: "none"}} />
       </div>
 
       <div className="call-controls">
