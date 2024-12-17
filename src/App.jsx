@@ -8,6 +8,7 @@ function VoiceCall() {
   const [callStatus, setCallStatus] = useState("Idle");
   const [params, setParams] = useState(null);
   const [newSocket, setNewSocket] = useState(null);
+  const [hasPermission, setHasPermission] = useState(false);
   const [fromAccept, setFromAccept] = useState(false);
 
   const peerConnection = useRef(null);
@@ -22,24 +23,21 @@ function VoiceCall() {
 
   useEffect(() => {
     function handleInjectedValues() {
-      // Check if INJECTED_VALUES exist and are not empty
       if (window.INJECTED_VALUES && Object.keys(window.INJECTED_VALUES).length > 0) {
         setParams(window.INJECTED_VALUES);
         console.log("Injected values:", window.INJECTED_VALUES);
       } else {
         console.log("Injected values not found or empty");
-  
+
         // Fallback to URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-  
-        // Extract specific parameters
+
         const paramsObj = {
           whoCalling: urlParams.get("whoCalling") || "",
           driverEmail: urlParams.get("driverEmail") || "",
           userId: urlParams.get("email") || "",
         };
-  
-        // Set params if at least one of them is available
+
         if (paramsObj.whoCalling || paramsObj.driverEmail || paramsObj.userId) {
           setParams(paramsObj);
           console.log("URL parameters:", paramsObj);
@@ -48,23 +46,20 @@ function VoiceCall() {
         }
       }
     }
-  
-    // Check document readiness
+
     if (document.readyState === "complete") {
       handleInjectedValues();
     } else {
       window.addEventListener("load", handleInjectedValues);
     }
-  
-    // Listen for injected values event
+
     document.addEventListener("injectedValuesReady", handleInjectedValues);
-  
+
     return () => {
       window.removeEventListener("load", handleInjectedValues);
       document.removeEventListener("injectedValuesReady", handleInjectedValues);
     };
   }, []);
-  
 
   // Initialize Socket.IO
   useEffect(() => {
@@ -115,11 +110,11 @@ function VoiceCall() {
   // Function to create RTCPeerConnection
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection(servers);
-  
+
     const emitTarget = params?.whoCalling === "Driver" 
-      ? params.driverEmail.split("@")[0] 
-      : params.userId.split("@")[0];
-  
+      ? params.userId.split("@")[0] 
+      : params.driverEmail.split("@")[0];
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         newSocket.emit("ice-candidate", {
@@ -128,38 +123,36 @@ function VoiceCall() {
         });
       }
     };
-  
+
     pc.ontrack = (event) => {
       console.log("Received remote stream.");
       remoteVideoRef.current.srcObject = event.streams[0];
     };
-  
+
     return pc;
   };
-  
 
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
       peerConnection.current = createPeerConnection();
-  
-      // Get local media stream
+
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localVideoRef.current.srcObject = localStream.current;
-  
+
       localStream.current.getTracks().forEach((track) => {
         peerConnection.current.addTrack(track, localStream.current);
       });
-  
+
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
-  
-      const emitTarget = params?.whoCalling === "Driver" 
-        ? params.driverEmail.split("@")[0] 
-        : params.userId.split("@")[0];
 
-      alert(`CAlling ${emitTarget}`)
-  
+      const emitTarget = params?.whoCalling === "Driver" 
+        ? params.userId.split("@")[0] 
+        : params.driverEmail.split("@")[0];
+
+      alert(`Calling ${emitTarget}`);
+
       newSocket.emit("offer", {
         to: emitTarget,
         from: params.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
@@ -167,17 +160,16 @@ function VoiceCall() {
       });
     } catch (error) {
       console.error("Error starting call:", error);
-      alert(`Error occurred: ${error}`)
+      alert(`Error occurred: ${error}`);
     }
   };
 
   const requestMicrophonePermission = async () => {
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        // Accessing the microphone and assigning it directly to the ref
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        localStream.current = stream;  // Assign to localStream.current instead of setLocalStream
-        setHasPermission(true);  // If you want to track permission status
+        localStream.current = stream;
+        setHasPermission(true);
       } else {
         console.error("getUserMedia is not supported in this browser.");
         alert("Your browser does not support microphone access.");
@@ -187,14 +179,11 @@ function VoiceCall() {
       alert("Please grant microphone permissions to proceed.");
     }
   };
-  
 
   useEffect(() => {
-    // Request microphone permission on component mount
     requestMicrophonePermission();
   }, []);
 
- 
   const endCall = () => {
     if (peerConnection.current) {
       peerConnection.current.close();
@@ -225,7 +214,6 @@ function VoiceCall() {
         <FaUserCircle className="profile-icon-placeholder" />
       </div>
 
-      {/* Local and Remote Streams */}
       <div>
         <video ref={localVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
         <video ref={remoteVideoRef} autoPlay playsInline style={{ display: "none" }} />
