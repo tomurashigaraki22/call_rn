@@ -71,7 +71,7 @@ function VoiceCall() {
       setCallStatus("Incoming Call...");
       peerConnections.current[data.from] = createPeerConnection(data.from);
 
-      await peerConnections.current[data.from].setRemoteDescription(new RTCSessionDescription(data));
+      await peerConnections.current[data.from].setRemoteDescription(new RTCSessionDescription(data.offer));
       const answer = await peerConnections.current[data.from].createAnswer();
       await peerConnections.current[data.from].setLocalDescription(answer);
 
