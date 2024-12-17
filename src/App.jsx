@@ -171,20 +171,13 @@ function VoiceCall() {
     }
   };
 
-  useEffect(() => {
-    // Request microphone permission on component mount
-    requestMicrophonePermission();
-  }, []);
-
   const requestMicrophonePermission = async () => {
     try {
-      // Check if getUserMedia is supported
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        // Accessing the microphone and assigning it directly to the ref
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-        // Stream successfully obtained
-        setLocalStream(stream);
-        setHasPermission(true);
+        localStream.current = stream;  // Assign to localStream.current instead of setLocalStream
+        setHasPermission(true);  // If you want to track permission status
       } else {
         console.error("getUserMedia is not supported in this browser.");
         alert("Your browser does not support microphone access.");
@@ -196,6 +189,12 @@ function VoiceCall() {
   };
   
 
+  useEffect(() => {
+    // Request microphone permission on component mount
+    requestMicrophonePermission();
+  }, []);
+
+ 
   const endCall = () => {
     if (peerConnection.current) {
       peerConnection.current.close();
