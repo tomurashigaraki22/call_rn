@@ -74,8 +74,11 @@ function VoiceCall() {
       await peerConnections.current[data.from].setRemoteDescription(new RTCSessionDescription(data.offer));
       const answer = await peerConnections.current[data.from].createAnswer();
       await peerConnections.current[data.from].setLocalDescription(answer);
+      const targetId = params?.whoCalling === "Driver" 
+        ? params.driverEmail.split("@")[0] 
+        : params.userId.split("@")[0];
 
-      socket.emit("answer", { to: data.from, answer });
+      socket.emit("answer", { to: targetId, answer });
     });
 
     socket.on("answer", async (data) => {
