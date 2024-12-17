@@ -11,9 +11,8 @@ function VoiceCall() {
   const [hasPermission, setHasPermission] = useState(false);
   const [fromAccept, setFromAccept] = useState(false);
 
-  const peerConnection = useRef(null);
+  const peerConnections = useRef({}); // Dictionary to store peer connections
   const localStream = useRef(null);
-  const remoteStream = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
@@ -27,41 +26,33 @@ function VoiceCall() {
         setParams(window.INJECTED_VALUES);
         console.log("Injected values:", window.INJECTED_VALUES);
       } else {
-        console.log("Injected values not found or empty");
-
-        // Fallback to URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-
         const paramsObj = {
           whoCalling: urlParams.get("whoCalling") || "",
           driverEmail: urlParams.get("driverEmail") || "",
           userId: urlParams.get("email") || "",
         };
-
         if (paramsObj.whoCalling || paramsObj.driverEmail || paramsObj.userId) {
           setParams(paramsObj);
           console.log("URL parameters:", paramsObj);
-        } else {
-          console.log("No valid parameters found in URL");
         }
       }
     }
-
+  
     if (document.readyState === "complete") {
       handleInjectedValues();
     } else {
       window.addEventListener("load", handleInjectedValues);
     }
-
+  
     document.addEventListener("injectedValuesReady", handleInjectedValues);
-
+  
     return () => {
       window.removeEventListener("load", handleInjectedValues);
       document.removeEventListener("injectedValuesReady", handleInjectedValues);
     };
   }, []);
 
-  // Initialize Socket.IO
   useEffect(() => {
     const socket = io("wss://dropserver.onrender.com", {
       reconnectionAttempts: 5,
@@ -78,22 +69,26 @@ function VoiceCall() {
     socket.on("offer", async (data) => {
       console.log("Received offer:", data);
       setCallStatus("Incoming Call...");
-      peerConnection.current = createPeerConnection();
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-      const answer = await peerConnection.current.createAnswer();
-      await peerConnection.current.setLocalDescription(answer);
+      peerConnections.current[data.from] = createPeerConnection(data.from);
+
+      await peerConnections.current[data.from].setRemoteDescription(new RTCSessionDescription(data));
+      const answer = await peerConnections.current[data.from].createAnswer();
+      await peerConnections.current[data.from].setLocalDescription(answer);
+
       socket.emit("answer", { to: data.from, answer });
     });
 
     socket.on("answer", async (data) => {
       console.log("Received answer:", data);
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+      if (peerConnections.current[data.from]) {
+        await peerConnections.current[data.from].setRemoteDescription(new RTCSessionDescription(data.answer));
+      }
     });
 
     socket.on("ice-candidate", async (data) => {
       console.log("Received ICE candidate:", data);
-      if (peerConnection.current) {
-        await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+      if (peerConnections.current[data.to]) {
+        await peerConnections.current[data.to].addIceCandidate(new RTCIceCandidate(data.candidate));
       }
     });
 
@@ -107,18 +102,13 @@ function VoiceCall() {
     };
   }, [params]);
 
-  // Function to create RTCPeerConnection
-  const createPeerConnection = () => {
+  const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
-
-    const emitTarget = params?.whoCalling === "Driver" 
-      ? params.userId.split("@")[0] 
-      : params.driverEmail.split("@")[0];
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         newSocket.emit("ice-candidate", {
-          to: emitTarget,
+          to: userId,
           candidate: event.candidate,
         });
       }
@@ -135,26 +125,27 @@ function VoiceCall() {
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
-      peerConnection.current = createPeerConnection();
+      const targetId = params?.whoCalling === "Driver" 
+        ? params.userId.split("@")[0] 
+        : params.driverEmail.split("@")[0];
 
+      const pc = createPeerConnection(targetId);
+      peerConnections.current[targetId] = pc;  // Store peer connection in the dictionary
+  
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localVideoRef.current.srcObject = localStream.current;
 
       localStream.current.getTracks().forEach((track) => {
-        peerConnection.current.addTrack(track, localStream.current);
+        pc.addTrack(track, localStream.current);
       });
 
-      const offer = await peerConnection.current.createOffer();
-      await peerConnection.current.setLocalDescription(offer);
-
-      const emitTarget = params?.whoCalling === "Driver" 
-        ? params.userId.split("@")[0] 
-        : params.driverEmail.split("@")[0];
-
-      alert(`Calling ${emitTarget}`);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+  
+      alert(`Calling ${targetId}`);
 
       newSocket.emit("offer", {
-        to: emitTarget,
+        to: targetId,
         from: params.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
         offer,
       });
@@ -185,10 +176,8 @@ function VoiceCall() {
   }, []);
 
   const endCall = () => {
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
+    Object.values(peerConnections.current).forEach((pc) => pc.close());
+    peerConnections.current = {};
     if (localStream.current) {
       localStream.current.getTracks().forEach((track) => track.stop());
     }
@@ -215,7 +204,7 @@ function VoiceCall() {
       </div>
 
       <div>
-        <video ref={localVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
+        <video ref={localVideoRef} autoPlay playsInline style={{ display: "none" }} />
         <video ref={remoteVideoRef} autoPlay playsInline style={{ display: "none" }} />
       </div>
 
