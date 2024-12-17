@@ -79,7 +79,7 @@ function VoiceCall() {
       console.log("Received offer:", data);
       setCallStatus("Incoming Call...");
       peerConnection.current = createPeerConnection();
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data));
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
       socket.emit("answer", { to: data.from, answer });
