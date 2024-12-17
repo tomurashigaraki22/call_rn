@@ -122,7 +122,7 @@ function VoiceCall() {
 
     pc.ontrack = (event) => {
       console.log("Received remote stream: ", event);
-      alert(`Remote stream: ${event}`)
+      alert(`Remote stream: ${event.streams[0]}`)
       remoteVideoRef.current.srcObject = event.streams[0];
     };
 
@@ -140,6 +140,7 @@ function VoiceCall() {
       peerConnections.current[targetId] = pc;  // Store peer connection in the dictionary
   
       localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      alert(`Localstream: ${localStream.current}`)
       localVideoRef.current.srcObject = localStream.current;
 
       localStream.current.getTracks().forEach((track) => {
