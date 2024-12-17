@@ -14,8 +14,8 @@ function VoiceCall() {
 
   const peerConnections = useRef({}); // Dictionary to store peer connections
   const localStream = useRef(null);
+  const remoteAudioRef = useRef(null); // Ref for remote audio
   const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
 
   const servers = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -63,7 +63,7 @@ function VoiceCall() {
 
     socket.on("connect", () => {
       alert("Connected to socket.io successfully");
-      const email = params?.whoCalling !== "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0];
+      const email = params?.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0];
       socket.emit("register_user", { email });
     });
 
@@ -102,7 +102,7 @@ function VoiceCall() {
 
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
-    const targetId = params?.whoCalling !== "Driver"
+    const targetId = params?.whoCalling === "Driver"
       ? params.driverEmail.split("@")[0]
       : params.userId.split("@")[0];
 
@@ -118,14 +118,8 @@ function VoiceCall() {
     pc.ontrack = (event) => {
       console.log("Received remote stream: ", event);
       if (event.streams[0].getAudioTracks().length > 0) {
-        console.log("Remote stream has audio track");
-        const audioTrack = event.streams[0].getAudioTracks()[0];
-        if (audioTrack.enabled) {
-          alert(`It is enabled`);
-        }
-        remoteVideoRef.current.srcObject = event.streams[0];
-      } else {
-        console.log("No audio track in remote stream");
+        const remoteStream = event.streams[0];
+        remoteAudioRef.current.srcObject = remoteStream; // Set remote audio stream to audio element
       }
     };
 
@@ -135,7 +129,7 @@ function VoiceCall() {
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
-      const targetId = params?.whoCalling !== "Driver"
+      const targetId = params?.whoCalling === "Driver"
         ? params.driverEmail.split("@")[0]
         : params.userId.split("@")[0];
 
@@ -147,7 +141,6 @@ function VoiceCall() {
       localVideoRef.current.srcObject = localStream.current;
 
       localStream.current.getTracks().forEach((track) => {
-        alert(`Tracks: ${track}`);
         pc.addTrack(track, localStream.current);
       });
 
@@ -158,7 +151,7 @@ function VoiceCall() {
 
       newSocket.emit("offer", {
         to: targetId,
-        from: params.whoCalling !== "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
+        from: params.whoCalling === "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
         offer,
       });
     } catch (error) {
@@ -186,12 +179,11 @@ function VoiceCall() {
   const acceptCall = async () => {
     try {
       setCallStatus("Call Accepted");
-      const targetId = params?.whoCalling !== "Driver"
+      const targetId = params?.whoCalling === "Driver"
         ? params.driverEmail.split("@")[0]
         : params.userId.split("@")[0];
 
-      const pc = peerConnections.current[targetId]
-      console.log("Pc: ", pc)
+      const pc = peerConnections.current[targetId];
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -232,8 +224,7 @@ function VoiceCall() {
       </div>
 
       <div>
-        <audio ref={localVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
-        <audio ref={remoteVideoRef} autoPlay playsInline style={{ display: "none" }} />
+        <audio ref={remoteAudioRef} autoPlay playsInline />
       </div>
 
       <div className="call-controls">
@@ -247,11 +238,11 @@ function VoiceCall() {
 
         {isIncomingCall ? (
           <button onClick={acceptCall} className="control-button green-bg">
-            <FaPhone className="control-icon white" />
+            <FaPhone className="control-icon white" /> Accept Call
           </button>
         ) : (
           <button onClick={startCall} className="control-button green-bg">
-            <FaPhoneAlt className="control-icon white" />
+            <FaPhoneAlt className="control-icon white" /> Start Call
           </button>
         )}
 
