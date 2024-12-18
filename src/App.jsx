@@ -100,6 +100,8 @@ function DriverCall() {
       console.log("Remote stream received:", event.streams[0]);
         console.log("Awesome")
         remoteVideoRef.current.srcObject = event.streams[0];
+        console.log("E: ", event.streams[0].getTracks())
+
     };
     
 
