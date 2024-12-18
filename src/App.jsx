@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
-import {
-  FaMicrophone,
-  FaMicrophoneSlash,
-  FaPhoneAlt,
-  FaPhone,
-} from "react-icons/fa";
+import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaPhone } from "react-icons/fa";
 import "./App.css";
 
 function DriverCall() {
@@ -17,8 +12,7 @@ function DriverCall() {
 
   const peerConnections = useRef({});
   const localStream = useRef(null);
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null); // Ref for the remote audio element
 
   const servers = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -54,6 +48,7 @@ function DriverCall() {
       setCallStatus("Incoming Call...");
       setIsIncomingCall(true);
       peerConnections.current[data.from] = createPeerConnection(data.from);
+
       await peerConnections.current[data.from].setRemoteDescription(
         new RTCSessionDescription(data.offer)
       );
@@ -71,7 +66,6 @@ function DriverCall() {
     socket.on("ice-candidate", async (data) => {
       console.log("Received ICE candidate:", data);
       if (peerConnections.current[data.to]) {
-        console.log("PEER: ", peerConnections.current[data.to])
         await peerConnections.current[data.to].addIceCandidate(
           new RTCIceCandidate(data.candidate)
         );
@@ -88,26 +82,20 @@ function DriverCall() {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("ice-candidate", {
-          to: params.driverId, // Replace with correct recipient
+        newSocket.emit("ice-candidate", {
+          to: params.driverId,
           candidate: event.candidate,
         });
       }
     };
-    
 
+    // Attach the incoming stream to the audio element
     pc.ontrack = (event) => {
       console.log("Remote stream received:", event.streams[0]);
-      if (event.streams && event.streams[0]) {
-        console.log("Stream Tracks:", event.streams[0].getTracks());
-        if (remoteVideoRef.current) {
-          console.log("ALTLcal-rn:")
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
+      if (remoteAudioRef.current && event.streams[0]) {
+        remoteAudioRef.current.srcObject = event.streams[0];
       }
     };
-    
-    
 
     return pc;
   };
@@ -118,10 +106,9 @@ function DriverCall() {
       const pc = createPeerConnection(params.userId);
       peerConnections.current[params.userId] = pc;
 
-      // Request audio and video
+      // Request audio-only stream
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
-        video: true,
       });
 
       localStream.current.getTracks().forEach((track) => {
@@ -147,10 +134,9 @@ function DriverCall() {
       setCallStatus("Call Accepted");
       const pc = peerConnections.current[params.userId];
 
-      // Request audio and video
+      // Request audio-only stream
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
-        video: true,
       });
 
       localStream.current.getTracks().forEach((track) => {
@@ -192,14 +178,8 @@ function DriverCall() {
         <div className="call-status">{callStatus}</div>
       </div>
 
-      <div className="video-container">
-        <video
-  ref={remoteVideoRef}
-  autoPlay
-  playsInline
-  className="remote-video"
-/>
-      </div>
+      {/* Audio element to play the remote audio */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div className="call-controls">
         <button onClick={toggleMute} className="control-button">
