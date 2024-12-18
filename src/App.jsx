@@ -87,7 +87,7 @@ function VoiceCall() {
     };
   }, [params]);
 
-  const createPeerConnection = (userId) => {
+  const createPeerConnection = () => {
     const pc = new RTCPeerConnection(servers);
     const targetId =
       params?.whoCalling === "Driver"
@@ -107,8 +107,11 @@ function VoiceCall() {
       console.log("Received remote stream:", event.streams[0]);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
+      } else {
+        console.error("Remote video element is not found.");
       }
     };
+    
   
     return pc;
   };
@@ -212,12 +215,19 @@ function VoiceCall() {
       </div>
 
       <div className="video-container">
+
         <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
           className="remote-video"
         />
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          className="local-video"
+          />
       </div>
 
       <div className="call-controls">
