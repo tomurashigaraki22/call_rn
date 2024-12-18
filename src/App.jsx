@@ -4,7 +4,6 @@ import {
   FaMicrophone,
   FaMicrophoneSlash,
   FaPhoneAlt,
-  FaUserCircle,
   FaPhone,
 } from "react-icons/fa";
 import "./App.css";
@@ -18,8 +17,8 @@ function VoiceCall() {
 
   const peerConnections = useRef({});
   const localStream = useRef(null);
-  const localAudioRef = useRef(null);
-  const remoteAudioRef = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   const servers = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -48,9 +47,10 @@ function VoiceCall() {
 
     socket.on("connect", () => {
       console.log("Connected to socket.io successfully");
-      const email = params?.whoCalling !== "Driver"
-        ? params?.userId.split("@")[0]
-        : params?.driverEmail.split("@")[0];
+      const email =
+        params?.whoCalling !== "Driver"
+          ? params?.userId.split("@")[0]
+          : params?.driverEmail.split("@")[0];
       socket.emit("register_user", { email });
     });
 
@@ -89,9 +89,10 @@ function VoiceCall() {
 
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
-    const targetId = params?.whoCalling !== "Driver"
-      ? params.driverEmail.split("@")[0]
-      : params.userId.split("@")[0];
+    const targetId =
+      params?.whoCalling !== "Driver"
+        ? params.driverEmail.split("@")[0]
+        : params.userId.split("@")[0];
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -104,7 +105,7 @@ function VoiceCall() {
 
     pc.ontrack = (event) => {
       console.log("Received remote stream:", event);
-      remoteAudioRef.current.srcObject = event.streams[0];
+      remoteVideoRef.current.srcObject = event.streams[0];
     };
 
     return pc;
@@ -113,15 +114,19 @@ function VoiceCall() {
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
-      const targetId = params?.whoCalling !== "Driver"
-        ? params.driverEmail.split("@")[0]
-        : params.userId.split("@")[0];
+      const targetId =
+        params?.whoCalling !== "Driver"
+          ? params.driverEmail.split("@")[0]
+          : params.userId.split("@")[0];
 
       const pc = createPeerConnection(targetId);
       peerConnections.current[targetId] = pc;
 
-      localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      localAudioRef.current.srcObject = localStream.current;
+      localStream.current = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      });
+      localVideoRef.current.srcObject = localStream.current;
 
       localStream.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStream.current);
@@ -132,7 +137,10 @@ function VoiceCall() {
 
       newSocket.emit("offer", {
         to: targetId,
-        from: params.whoCalling !== "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
+        from:
+          params.whoCalling !== "Driver"
+            ? params.userId.split("@")[0]
+            : params.driverEmail.split("@")[0],
         offer,
       });
     } catch (error) {
@@ -144,9 +152,10 @@ function VoiceCall() {
   const acceptCall = async () => {
     try {
       setCallStatus("Call Accepted");
-      const targetId = params?.whoCalling !== "Driver"
-        ? params.driverEmail.split("@")[0]
-        : params.userId.split("@")[0];
+      const targetId =
+        params?.whoCalling !== "Driver"
+          ? params.driverEmail.split("@")[0]
+          : params.userId.split("@")[0];
 
       const pc = peerConnections.current[targetId];
       const answer = await pc.createAnswer();
@@ -180,17 +189,26 @@ function VoiceCall() {
   return (
     <div className="call-screen">
       <div className="caller-info">
-        <div className="caller-name">{params ? params.whoCalling : "Unknown Caller"}</div>
+        <div className="caller-name">
+          {params ? params.whoCalling : "Unknown Caller"}
+        </div>
         <div className="call-status">{callStatus}</div>
       </div>
 
-      <div className="profile-icon">
-        <FaUserCircle className="profile-icon-placeholder" />
-      </div>
-
-      <div>
-        <audio ref={localAudioRef} autoPlay muted playsInline style={{ display: "none" }} />
-        <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+      <div className="video-container">
+        <video
+          ref={localVideoRef}
+          autoPlay
+          muted
+          playsInline
+          className="local-video"
+        />
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className="remote-video"
+        />
       </div>
 
       <div className="call-controls">
