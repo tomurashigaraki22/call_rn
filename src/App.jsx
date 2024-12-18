@@ -98,11 +98,15 @@ function DriverCall() {
 
     pc.ontrack = (event) => {
       console.log("Remote stream received:", event.streams[0]);
-        console.log("Awesome")
-        remoteVideoRef.current.srcObject = event.streams[0];
-        console.log("E: ", event.streams[0].getTracks())
-
+      if (event.streams && event.streams[0]) {
+        console.log("Stream Tracks:", event.streams[0].getTracks());
+        if (remoteVideoRef.current) {
+          console.log("ALTLcal-rn:")
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      }
     };
+    
     
 
     return pc;
@@ -119,7 +123,6 @@ function DriverCall() {
         audio: true,
         video: true,
       });
-      localVideoRef.current.srcObject = localStream.current;
 
       localStream.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStream.current);
