@@ -8,7 +8,7 @@ import {
 } from "react-icons/fa";
 import "./App.css";
 
-function VoiceCall() {
+function DriverCall() {
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Idle");
   const [params, setParams] = useState(null);
@@ -28,9 +28,8 @@ function VoiceCall() {
     const initializeParams = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const paramsObj = {
-        whoCalling: urlParams.get("whoCalling") || "",
-        driverEmail: urlParams.get("driverEmail") || "",
-        userId: urlParams.get("email") || "",
+        driverId: urlParams.get("driverId") || "",
+        userId: urlParams.get("userId") || "",
       };
       setParams(paramsObj);
     };
@@ -47,11 +46,7 @@ function VoiceCall() {
 
     socket.on("connect", () => {
       console.log("Connected to socket.io successfully");
-      const email =
-        params?.whoCalling === "Driver"
-          ? params?.userId.split("@")[0]
-          : params?.driverEmail.split("@")[0];
-      socket.emit("register_user", { email });
+      socket.emit("register_user", { email: params.driverId });
     });
 
     socket.on("offer", async (data) => {
@@ -87,66 +82,51 @@ function VoiceCall() {
     };
   }, [params]);
 
-  const createPeerConnection = () => {
+  const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
-    const targetId =
-      params?.whoCalling === "Driver"
-        ? params.driverEmail.split("@")[0]
-        : params.userId.split("@")[0];
-  
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         newSocket.emit("ice-candidate", {
-          to: targetId,
+          to: params.userId,
           candidate: event.candidate,
         });
       }
     };
-  
+
     pc.ontrack = (event) => {
       console.log("Received remote stream:", event.streams[0]);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
-      } else {
-        console.error("Remote video element is not found.");
       }
     };
-    
-  
+
     return pc;
   };
-  
+
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
-      const targetId =
-        params?.whoCalling === "Driver"
-          ? params.driverEmail.split("@")[0]
-          : params.userId.split("@")[0];
-  
-      const pc = createPeerConnection(targetId);
-      peerConnections.current[targetId] = pc;
-  
+      const pc = createPeerConnection(params.userId);
+      peerConnections.current[params.userId] = pc;
+
       // Request audio and video
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: true,
       });
       localVideoRef.current.srcObject = localStream.current;
-  
+
       localStream.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStream.current);
       });
-  
+
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-  
+
       newSocket.emit("offer", {
-        to: targetId,
-        from:
-          params.whoCalling === "Driver"
-            ? params.userId.split("@")[0]
-            : params.driverEmail.split("@")[0],
+        to: params.userId,
+        from: params.driverId,
         offer,
       });
     } catch (error) {
@@ -154,39 +134,33 @@ function VoiceCall() {
       alert("Error occurred: " + error);
     }
   };
-  
+
   const acceptCall = async () => {
     try {
       setCallStatus("Call Accepted");
-      const targetId =
-        params?.whoCalling === "Driver"
-          ? params.driverEmail.split("@")[0]
-          : params.userId.split("@")[0];
-  
-      const pc = peerConnections.current[targetId];
-  
+      const pc = peerConnections.current[params.userId];
+
       // Request audio and video
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: true,
       });
       localVideoRef.current.srcObject = localStream.current;
-  
+
       localStream.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStream.current);
       });
-  
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-  
-      newSocket.emit("answer", { to: targetId, answer });
+
+      newSocket.emit("answer", { to: params.userId, answer });
       setIsIncomingCall(false);
     } catch (error) {
       console.error("Error accepting call:", error);
       alert("Failed to accept call.");
     }
   };
-  
 
   const endCall = () => {
     Object.values(peerConnections.current).forEach((pc) => pc.close());
@@ -208,26 +182,24 @@ function VoiceCall() {
   return (
     <div className="call-screen">
       <div className="caller-info">
-        <div className="caller-name">
-          {params ? params.whoCalling : "Unknown Caller"}
-        </div>
+        <div className="caller-name">Driver</div>
         <div className="call-status">{callStatus}</div>
       </div>
 
       <div className="video-container">
-
+        <video
+          ref={localVideoRef}
+          autoPlay
+          muted
+          playsInline
+          className="local-video"
+        />
         <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
           className="remote-video"
         />
-        <video
-          ref={localVideoRef}
-          autoPlay
-          playsInline
-          className="local-video"
-          />
       </div>
 
       <div className="call-controls">
@@ -257,4 +229,4 @@ function VoiceCall() {
   );
 }
 
-export default VoiceCall;
+export default DriverCall;
