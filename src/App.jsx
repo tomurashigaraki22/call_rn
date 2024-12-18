@@ -71,6 +71,7 @@ function DriverCall() {
     socket.on("ice-candidate", async (data) => {
       console.log("Received ICE candidate:", data);
       if (peerConnections.current[data.to]) {
+        console.log("PEER: ", peerConnections.current[data.to])
         await peerConnections.current[data.to].addIceCandidate(
           new RTCIceCandidate(data.candidate)
         );
@@ -87,19 +88,21 @@ function DriverCall() {
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        newSocket.emit("ice-candidate", {
-          to: params.userId,
+        socket.emit("ice-candidate", {
+          to: params.driverId, // Replace with correct recipient
           candidate: event.candidate,
         });
       }
     };
+    
 
     pc.ontrack = (event) => {
-      console.log("Received remote stream:", event.streams[0]);
+      console.log("Remote stream received:", event.streams[0]);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
     };
+    
 
     return pc;
   };
@@ -195,11 +198,11 @@ function DriverCall() {
           className="local-video"
         />
         <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="remote-video"
-        />
+  ref={remoteVideoRef}
+  autoPlay
+  playsInline
+  className="remote-video"
+/>
       </div>
 
       <div className="call-controls">
