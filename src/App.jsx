@@ -48,7 +48,7 @@ function VoiceCall() {
     socket.on("connect", () => {
       console.log("Connected to socket.io successfully");
       const email =
-        params?.whoCalling !== "Driver"
+        params?.whoCalling === "Driver"
           ? params?.userId.split("@")[0]
           : params?.driverEmail.split("@")[0];
       socket.emit("register_user", { email });
@@ -90,7 +90,7 @@ function VoiceCall() {
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(servers);
     const targetId =
-      params?.whoCalling !== "Driver"
+      params?.whoCalling === "Driver"
         ? params.driverEmail.split("@")[0]
         : params.userId.split("@")[0];
   
@@ -117,7 +117,7 @@ function VoiceCall() {
     try {
       setCallStatus("Starting Call...");
       const targetId =
-        params?.whoCalling !== "Driver"
+        params?.whoCalling === "Driver"
           ? params.driverEmail.split("@")[0]
           : params.userId.split("@")[0];
   
@@ -141,7 +141,7 @@ function VoiceCall() {
       newSocket.emit("offer", {
         to: targetId,
         from:
-          params.whoCalling !== "Driver"
+          params.whoCalling === "Driver"
             ? params.userId.split("@")[0]
             : params.driverEmail.split("@")[0],
         offer,
@@ -156,7 +156,7 @@ function VoiceCall() {
     try {
       setCallStatus("Call Accepted");
       const targetId =
-        params?.whoCalling !== "Driver"
+        params?.whoCalling === "Driver"
           ? params.driverEmail.split("@")[0]
           : params.userId.split("@")[0];
   
