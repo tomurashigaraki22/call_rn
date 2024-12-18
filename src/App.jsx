@@ -97,7 +97,7 @@ function DriverCall() {
     
 
     pc.ontrack = (event) => {
-      console.log("Remote stream received:", event.streams);
+      console.log("Remote stream received:", event.streams[0]);
         console.log("Awesome")
         remoteVideoRef.current.srcObject = event.streams[0];
     };
@@ -147,7 +147,6 @@ function DriverCall() {
         audio: true,
         video: true,
       });
-      localVideoRef.current.srcObject = localStream.current;
 
       localStream.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStream.current);
@@ -189,13 +188,6 @@ function DriverCall() {
       </div>
 
       <div className="video-container">
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="local-video"
-        />
         <video
   ref={remoteVideoRef}
   autoPlay
