@@ -6,13 +6,13 @@ import "./App.css";
 function DriverCall() {
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Idle");
-  const [params, setParams] = useState(null);
+  const [params, setParams] = useState({ driverId: "", userId: "" });
   const [newSocket, setNewSocket] = useState(null);
   const [isIncomingCall, setIsIncomingCall] = useState(false);
 
   const peerConnections = useRef({});
   const localStream = useRef(null);
-  const remoteAudioRef = useRef(null); // Ref for the remote audio element
+  const remoteAudioRef = useRef(null);
 
   const servers = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -21,11 +21,10 @@ function DriverCall() {
   useEffect(() => {
     const initializeParams = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const paramsObj = {
+      setParams({
         driverId: urlParams.get("driverId") || "",
         userId: urlParams.get("userId") || "",
-      };
-      setParams(paramsObj);
+      });
     };
 
     initializeParams();
@@ -47,28 +46,38 @@ function DriverCall() {
       console.log("Received offer:", data);
       setCallStatus("Incoming Call...");
       setIsIncomingCall(true);
-      peerConnections.current[data.from] = createPeerConnection(data.from);
-
-      await peerConnections.current[data.from].setRemoteDescription(
-        new RTCSessionDescription(data.offer)
-      );
+      const pc = createPeerConnection(data.from);
+      peerConnections.current[data.from] = pc;
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      } catch (error) {
+        console.error("Error setting remote description:", error);
+      }
     });
 
     socket.on("answer", async (data) => {
       console.log("Received answer:", data);
       if (peerConnections.current[data.from]) {
-        await peerConnections.current[data.from].setRemoteDescription(
-          new RTCSessionDescription(data.answer)
-        );
+        try {
+          await peerConnections.current[data.from].setRemoteDescription(
+            new RTCSessionDescription(data.answer)
+          );
+        } catch (error) {
+          console.error("Error setting remote description:", error);
+        }
       }
     });
 
     socket.on("ice-candidate", async (data) => {
       console.log("Received ICE candidate:", data);
-      if (peerConnections.current[data.to]) {
-        await peerConnections.current[data.to].addIceCandidate(
-          new RTCIceCandidate(data.candidate)
-        );
+      if (peerConnections.current[data.from]) {
+        try {
+          await peerConnections.current[data.from].addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+          );
+        } catch (error) {
+          console.error("Error adding ICE candidate:", error);
+        }
       }
     });
 
@@ -83,17 +92,20 @@ function DriverCall() {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         newSocket.emit("ice-candidate", {
-          to: params.driverId,
+          to: userId,
+          from: params.driverId,
           candidate: event.candidate,
         });
       }
     };
 
-    // Attach the incoming stream to the audio element
     pc.ontrack = (event) => {
-      console.log("Remote stream received:", event.streams[0]);
-      if (remoteAudioRef.current && event.streams[0]) {
+      console.log("Remote track received:", event.streams[0]);
+      console.log("Track type:", event.track.kind);
+      console.log("Track settings:", event.track.getSettings());
+      if (remoteAudioRef.current && event.streams && event.streams[0]) {
         remoteAudioRef.current.srcObject = event.streams[0];
+        remoteAudioRef.current.play().catch(error => console.error("Error playing audio:", error));
       }
     };
 
@@ -106,7 +118,6 @@ function DriverCall() {
       const pc = createPeerConnection(params.userId);
       peerConnections.current[params.userId] = pc;
 
-      // Request audio-only stream
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
@@ -117,6 +128,7 @@ function DriverCall() {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      console.log("Local description set:", pc.localDescription);
 
       newSocket.emit("offer", {
         to: params.userId,
@@ -134,7 +146,6 @@ function DriverCall() {
       setCallStatus("Call Accepted");
       const pc = peerConnections.current[params.userId];
 
-      // Request audio-only stream
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
@@ -145,8 +156,13 @@ function DriverCall() {
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+      console.log("Local description set:", pc.localDescription);
 
-      newSocket.emit("answer", { to: params.userId, answer });
+      newSocket.emit("answer", { 
+        to: params.userId, 
+        from: params.driverId,
+        answer 
+      });
       setIsIncomingCall(false);
     } catch (error) {
       console.error("Error accepting call:", error);
@@ -159,6 +175,9 @@ function DriverCall() {
     peerConnections.current = {};
     if (localStream.current) {
       localStream.current.getTracks().forEach((track) => track.stop());
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
     }
     setCallStatus("Call Ended");
   };
@@ -178,7 +197,6 @@ function DriverCall() {
         <div className="call-status">{callStatus}</div>
       </div>
 
-      {/* Audio element to play the remote audio */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       <div className="call-controls">
@@ -209,3 +227,4 @@ function DriverCall() {
 }
 
 export default DriverCall;
+
