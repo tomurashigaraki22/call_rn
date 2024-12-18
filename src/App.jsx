@@ -98,10 +98,8 @@ function DriverCall() {
 
     pc.ontrack = (event) => {
       console.log("Remote stream received:", event.streams);
-      if (remoteVideoRef.current) {
         console.log("Awesome")
         remoteVideoRef.current.srcObject = event.streams[0];
-      }
     };
     
 
