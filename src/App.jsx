@@ -93,7 +93,7 @@ function VoiceCall() {
       params?.whoCalling !== "Driver"
         ? params.driverEmail.split("@")[0]
         : params.userId.split("@")[0];
-
+  
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         newSocket.emit("ice-candidate", {
@@ -102,15 +102,17 @@ function VoiceCall() {
         });
       }
     };
-
+  
     pc.ontrack = (event) => {
-      console.log("Received remote stream:", event);
-      remoteVideoRef.current.srcObject = event.streams[0];
+      console.log("Received remote stream:", event.streams[0]);
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
     };
-
+  
     return pc;
   };
-
+  
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
@@ -118,23 +120,24 @@ function VoiceCall() {
         params?.whoCalling !== "Driver"
           ? params.driverEmail.split("@")[0]
           : params.userId.split("@")[0];
-
+  
       const pc = createPeerConnection(targetId);
       peerConnections.current[targetId] = pc;
-
+  
+      // Request audio and video
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: true,
       });
       localVideoRef.current.srcObject = localStream.current;
-
+  
       localStream.current.getTracks().forEach((track) => {
         pc.addTrack(track, localStream.current);
       });
-
+  
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-
+  
       newSocket.emit("offer", {
         to: targetId,
         from:
@@ -148,7 +151,7 @@ function VoiceCall() {
       alert("Error occurred: " + error);
     }
   };
-
+  
   const acceptCall = async () => {
     try {
       setCallStatus("Call Accepted");
@@ -156,11 +159,23 @@ function VoiceCall() {
         params?.whoCalling !== "Driver"
           ? params.driverEmail.split("@")[0]
           : params.userId.split("@")[0];
-
+  
       const pc = peerConnections.current[targetId];
+  
+      // Request audio and video
+      localStream.current = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      });
+      localVideoRef.current.srcObject = localStream.current;
+  
+      localStream.current.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream.current);
+      });
+  
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-
+  
       newSocket.emit("answer", { to: targetId, answer });
       setIsIncomingCall(false);
     } catch (error) {
@@ -168,6 +183,7 @@ function VoiceCall() {
       alert("Failed to accept call.");
     }
   };
+  
 
   const endCall = () => {
     Object.values(peerConnections.current).forEach((pc) => pc.close());
