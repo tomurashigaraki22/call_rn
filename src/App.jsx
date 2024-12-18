@@ -156,7 +156,6 @@ function DriverCall() {
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      console.log("Local description set:", pc.localDescription);
 
       newSocket.emit("answer", { 
         to: params.userId, 
@@ -164,6 +163,16 @@ function DriverCall() {
         answer 
       });
       setIsIncomingCall(false);
+
+      // Start playing the audio
+      if (remoteAudioRef.current && remoteAudioRef.current.srcObject) {
+        try {
+          await remoteAudioRef.current.play();
+          console.log("Audio playback started successfully");
+        } catch (error) {
+          console.error("Error playing audio:", error);
+        }
+      }
     } catch (error) {
       console.error("Error accepting call:", error);
       alert("Failed to accept call.");
@@ -190,6 +199,14 @@ function DriverCall() {
     }
   };
 
+  const playAudio = () => {
+    if (remoteAudioRef.current && remoteAudioRef.current.srcObject) {
+      remoteAudioRef.current.play().catch(error => console.error("Error playing audio:", error));
+    } else {
+      console.log("No audio source available yet");
+    }
+  };
+
   return (
     <div className="call-screen">
       <div className="caller-info">
@@ -197,7 +214,12 @@ function DriverCall() {
         <div className="call-status">{callStatus}</div>
       </div>
 
-      <audio ref={remoteAudioRef} autoPlay playsInline />
+      <div>
+        <audio ref={remoteAudioRef} playsInline />
+        <button onClick={playAudio} className="play-audio-button">
+          Play Audio
+        </button>
+      </div>
 
       <div className="call-controls">
         <button onClick={toggleMute} className="control-button">
@@ -227,4 +249,3 @@ function DriverCall() {
 }
 
 export default DriverCall;
-
