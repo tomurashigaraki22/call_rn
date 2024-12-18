@@ -213,13 +213,6 @@ function VoiceCall() {
 
       <div className="video-container">
         <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="local-video"
-        />
-        <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
