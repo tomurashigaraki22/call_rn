@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaPhone } from "react-icons/fa";
-import "./App.css";
+import './App.css'
 
 function DriverCall() {
   const [isMuted, setIsMuted] = useState(false);
@@ -208,17 +208,17 @@ function DriverCall() {
   };
 
   return (
-    <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'black', color: 'white', padding: '16px' }}>
+    <div style={{ flex: 1, textAlign: 'center', backgroundColor: 'black', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
       {/* Caller Info */}
-      <div style={{ textAlign: 'center', marginTop: '40px' }}>
+      <div style={{ marginBottom: 'auto', textAlign: 'center', marginTop: 20 }}>
         <div style={{ fontSize: '32px', fontWeight: '600' }}>Driver</div>
         <div style={{ fontSize: '14px', marginTop: '8px' }}>{callStatus}</div>
       </div>
-
+  
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
-
+  
       {/* Call Controls */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '16px', position: 'absolute', bottom: 10, width: '100%' }}>
         {/* Mute Button */}
         <button
           onClick={toggleMute}
@@ -230,7 +230,7 @@ function DriverCall() {
             <FaMicrophone style={{ color: 'white', fontSize: '24px' }} />
           )}
         </button>
-
+  
         {/* Accept or Start Call Button */}
         {isIncomingCall ? (
           <button
@@ -247,7 +247,7 @@ function DriverCall() {
             <FaPhoneAlt style={{ color: 'white', fontSize: '24px' }} />
           </button>
         )}
-
+  
         {/* End Call Button */}
         <button
           onClick={endCall}
@@ -258,6 +258,7 @@ function DriverCall() {
       </div>
     </div>
   );
+  
 }
 
 export default DriverCall;
