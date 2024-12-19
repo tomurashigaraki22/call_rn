@@ -148,7 +148,12 @@ function UserCall() {
   const acceptCall = async () => {
     try {
       setCallStatus("Call Accepted");
-      const pc = peerConnections.current[params.driverId];
+      const callerId = Object.keys(peerConnections.current)[0]; // Get the caller's ID
+      const pc = peerConnections.current[callerId];
+
+      if (!pc) {
+        throw new Error("No peer connection found for the incoming call");
+      }
 
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -162,7 +167,7 @@ function UserCall() {
       await pc.setLocalDescription(answer);
 
       newSocket.emit("answer", { 
-        to: params.driverId, 
+        to: callerId, 
         from: params.userId,
         answer 
       });
@@ -199,6 +204,15 @@ function UserCall() {
       const audioTrack = localStream.current.getAudioTracks()[0];
       audioTrack.enabled = !audioTrack.enabled;
       setIsMuted(!audioTrack.enabled);
+    }
+  };
+
+  const playAudio = () => {
+    if (remoteAudioRef.current && remoteAudioRef.current.srcObject) {
+      remoteAudioRef.current.play().catch(error => console.error("Error playing audio:", error));
+    } else {
+      console.log("No audio source available yet");
+      alert("No audio source available");
     }
   };
 
@@ -251,3 +265,4 @@ function UserCall() {
 }
 
 export default UserCall;
+
