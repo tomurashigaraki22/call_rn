@@ -150,7 +150,7 @@ function DriverCall() {
   const acceptCall = async () => {
     try {
       setCallStatus("Call Accepted");
-      const pc = peerConnections.current[params.userId];
+      const pc = peerConnections.current[params.driverId];
 
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -164,8 +164,8 @@ function DriverCall() {
       await pc.setLocalDescription(answer);
 
       newSocket.emit("answer", { 
-        to: params.userId, 
-        from: params.driverId,
+        to: params.driverId, 
+        from: params.userId,
         answer 
       });
       setIsIncomingCall(false);
@@ -217,7 +217,7 @@ function DriverCall() {
     <div style={{ flex: 1, textAlign: 'center', backgroundColor: 'black', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
       {/* Caller Info */}
       <div style={{ marginBottom: 'auto', textAlign: 'center', marginTop: 20 }}>
-        <div style={{ fontSize: '32px', fontWeight: '600' }}>Driver</div>
+        <div style={{ fontSize: '32px', fontWeight: '600' }}>User</div>
         <div style={{ fontSize: '14px', marginTop: '8px' }}>{callStatus}</div>
       </div>
   
