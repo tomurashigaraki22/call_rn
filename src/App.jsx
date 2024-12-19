@@ -31,9 +31,9 @@ function VoiceCall() {
         const paramsObj = {
           whoCalling: urlParams.get("whoCalling") || "",
           driverEmail: urlParams.get("driverEmail") || "",
-          userId: urlParams.get("email") || "",
+          email: urlParams.get("email") || "",
         };
-        if (paramsObj.whoCalling || paramsObj.driverEmail || paramsObj.userId) {
+        if (paramsObj.whoCalling || paramsObj.driverEmail || paramsObj.email) {
           setParams(paramsObj);
           console.log("URL parameters:", paramsObj);
         }
@@ -63,7 +63,7 @@ function VoiceCall() {
 
     socket.on("connect", () => {
       alert("Connected to socket.io successfully");
-      const email = params?.whoCalling !== "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0];
+      const email = params?.whoCalling !== "Driver" ? params.email.split("@")[0] : params.driverEmail.split("@")[0];
       socket.emit("register_user", { email });
     });
 
@@ -109,11 +109,11 @@ function VoiceCall() {
     };
   }, [params]);
 
-  const createPeerConnection = (userId) => {
+  const createPeerConnection = (email) => {
     const pc = new RTCPeerConnection(servers);
     const targetId = params?.whoCalling !== "Driver"
       ? params.driverEmail.split("@")[0]
-      : params.userId.split("@")[0];
+      : params.email.split("@")[0];
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -142,7 +142,7 @@ function VoiceCall() {
       setCallStatus("Starting Call...");
       const targetId = params?.whoCalling !== "Driver"
         ? params.driverEmail.split("@")[0]
-        : params.userId.split("@")[0];
+        : params.email.split("@")[0];
 
       const pc = createPeerConnection(targetId);
       peerConnections.current[targetId] = pc;
@@ -159,7 +159,7 @@ function VoiceCall() {
 
       newSocket.emit("offer", {
         to: targetId,
-        from: params.whoCalling !== "Driver" ? params.userId.split("@")[0] : params.driverEmail.split("@")[0],
+        from: params.whoCalling !== "Driver" ? params.email.split("@")[0] : params.driverEmail.split("@")[0],
         offer,
       });
 
@@ -181,7 +181,7 @@ function VoiceCall() {
       setCallStatus("Call Accepted");
       const targetId = params?.whoCalling !== "Driver"
         ? params.driverEmail.split("@")[0]
-        : params.userId.split("@")[0];
+        : params.email.split("@")[0];
 
       const pc = peerConnections.current[targetId];
       console.log("Pc: ", pc);
