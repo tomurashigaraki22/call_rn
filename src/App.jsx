@@ -3,7 +3,7 @@ import io from "socket.io-client";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaPhone } from "react-icons/fa";
 import './App.css'
 
-function DriverCall() {
+function UserCall() {
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Idle");
   const [params, setParams] = useState({ driverId: "", userId: "" });
@@ -39,7 +39,7 @@ function DriverCall() {
 
     socket.on("connect", () => {
       console.log("Connected to socket.io successfully");
-      socket.emit("register_user", { email: params.driverId });
+      socket.emit("register_user", { email: params.userId });
     });
 
     socket.on("offer", async (data) => {
@@ -92,14 +92,14 @@ function DriverCall() {
     };
   }, [params]);
 
-  const createPeerConnection = (userId) => {
+  const createPeerConnection = (driverId) => {
     const pc = new RTCPeerConnection(servers);
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         newSocket.emit("ice-candidate", {
-          to: userId,
-          from: params.driverId,
+          to: driverId,
+          from: params.userId,
           candidate: event.candidate,
         });
       }
@@ -107,8 +107,6 @@ function DriverCall() {
 
     pc.ontrack = (event) => {
       console.log("Remote track received:", event.streams[0]);
-      console.log("Track type:", event.track.kind);
-      console.log("Track settings:", event.track.getSettings());
       if (remoteAudioRef.current && event.streams && event.streams[0]) {
         remoteAudioRef.current.srcObject = event.streams[0];
         remoteAudioRef.current.play().catch(error => console.error("Error playing audio:", error));
@@ -121,8 +119,8 @@ function DriverCall() {
   const startCall = async () => {
     try {
       setCallStatus("Starting Call...");
-      const pc = createPeerConnection(params.userId);
-      peerConnections.current[params.userId] = pc;
+      const pc = createPeerConnection(params.driverId);
+      peerConnections.current[params.driverId] = pc;
 
       localStream.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -137,8 +135,8 @@ function DriverCall() {
       console.log("Local description set:", pc.localDescription);
 
       newSocket.emit("offer", {
-        to: params.userId,
-        from: params.driverId,
+        to: params.driverId,
+        from: params.userId,
         offer,
       });
     } catch (error) {
@@ -170,7 +168,6 @@ function DriverCall() {
       });
       setIsIncomingCall(false);
 
-      // Start playing the audio
       if (remoteAudioRef.current && remoteAudioRef.current.srcObject) {
         try {
           await remoteAudioRef.current.play();
@@ -205,27 +202,16 @@ function DriverCall() {
     }
   };
 
-  const playAudio = () => {
-    if (remoteAudioRef.current && remoteAudioRef.current.srcObject) {
-      remoteAudioRef.current.play().catch(error => console.error("Error playing audio:", error));
-    } else {
-      console.log("No audio source available yet");
-    }
-  };
-
   return (
     <div style={{ flex: 1, textAlign: 'center', backgroundColor: 'black', color: 'white', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-      {/* Caller Info */}
       <div style={{ marginBottom: 'auto', textAlign: 'center', marginTop: 20 }}>
         <div style={{ fontSize: '32px', fontWeight: '600' }}>User</div>
         <div style={{ fontSize: '14px', marginTop: '8px' }}>{callStatus}</div>
       </div>
-  
+
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
-  
-      {/* Call Controls */}
+
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '16px', position: 'absolute', bottom: 10, width: '100%' }}>
-        {/* Mute Button */}
         <button
           onClick={toggleMute}
           style={{ padding: '12px', borderRadius: '50%', border: '2px solid white', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
@@ -236,8 +222,7 @@ function DriverCall() {
             <FaMicrophone style={{ color: 'white', fontSize: '24px' }} />
           )}
         </button>
-  
-        {/* Accept or Start Call Button */}
+
         {isIncomingCall ? (
           <button
             onClick={acceptCall}
@@ -253,8 +238,7 @@ function DriverCall() {
             <FaPhoneAlt style={{ color: 'white', fontSize: '24px' }} />
           </button>
         )}
-  
-        {/* End Call Button */}
+
         <button
           onClick={endCall}
           style={{ padding: '12px', borderRadius: '50%', backgroundColor: '#D32F2F', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
@@ -264,7 +248,6 @@ function DriverCall() {
       </div>
     </div>
   );
-  
 }
 
-export default DriverCall;
+export default UserCall;
