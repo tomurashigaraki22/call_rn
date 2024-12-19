@@ -63,7 +63,7 @@ function DriverCall() {
             new RTCSessionDescription(data.answer)
           );
           try {
-            await audioRef.current.play();
+            await remoteAudioRef.current.play();
             console.log("Audio playback started successfully");
           } catch (error) {
             console.error("Error playing audio:", error);
