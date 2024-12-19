@@ -62,6 +62,12 @@ function DriverCall() {
           await peerConnections.current[data.from].setRemoteDescription(
             new RTCSessionDescription(data.answer)
           );
+          try {
+            await audioRef.current.play();
+            console.log("Audio playback started successfully");
+          } catch (error) {
+            console.error("Error playing audio:", error);
+          }
         } catch (error) {
           console.error("Error setting remote description:", error);
         }
