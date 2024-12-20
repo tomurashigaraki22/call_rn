@@ -3,7 +3,7 @@ import { FaPhone, FaMicrophone, FaPhoneSlash } from 'react-icons/fa';
 import Peer from 'peerjs';
 
 const CallScreen = () => {
-  const [callStatus, setCallStatus] = useState('Calling...');
+  const [callStatus, setCallStatus] = useState('Connecting...');
   const [isMuted, setIsMuted] = useState(false);
   const [timer, setTimer] = useState(0);
   const [intervalId, setIntervalId] = useState(null);
@@ -17,7 +17,7 @@ const CallScreen = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const userId = urlParams.get('userId');
   const driverId = urlParams.get('driverId');
-  const initiator = urlParams.get('initiator')
+  const initiator = urlParams.get('initiator');
   
   const localPeerId = userId?.slice(0, 4);
   const remotePeerId = driverId?.slice(0, 4);
@@ -42,7 +42,6 @@ const CallScreen = () => {
           localAudioRef.current.muted = true; // Mute local audio to avoid feedback
   
           call.answer(stream); // Automatically answer the call
-  
           call.on('stream', (remoteStream) => {
             setRemoteStream(remoteStream);
             remoteAudioRef.current.srcObject = remoteStream; // Set the remote stream
@@ -61,7 +60,12 @@ const CallScreen = () => {
       }
     };
   }, []);
-  
+
+  useEffect(() => {
+    if (initiator === 'true' && peer) {
+      startCall(remotePeerId);  // Start calling immediately
+    }
+  }, [initiator, peer]);  // Ensure `peer` is initialized before calling
 
   useEffect(() => {
     if (callStatus === 'In Call') {
@@ -141,14 +145,6 @@ const CallScreen = () => {
         alert(`Error accessing media: ${err}`);
       });
   };
-  
-  
-  useEffect(() => {
-    if (initiator === 'true' && peer) {
-      startCall(remotePeerId);  // Ensure `peer` is initialized before starting the call
-    }
-  }, [initiator, peer]);  // Add `peer` to dependencies to ensure the call happens when the peer is ready
-  
 
   return (
     <div style={{ 
@@ -203,15 +199,6 @@ const CallScreen = () => {
       {/* Hidden Audio Streams */}
       <audio ref={localAudioRef} autoPlay muted style={{ display: 'none' }} />
       <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
-
-      {/* Start Call Button for Authorized Users */}
-      {(localPeerId === driverId.slice(0, 4) || localPeerId === userId.slice(0, 4)) && (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <button onClick={() => startCall(remotePeerId)} style={buttonStyles('#3B82F6')}>
-            Start Call
-          </button>
-        </div>
-      )}
     </div>
   );
 };
