@@ -112,6 +112,11 @@ const CallScreen = () => {
   };
 
   const startCall = (remotePeerId) => {
+    if (!peer) {
+      console.error('Peer connection is not initialized yet!');
+      return;
+    }
+  
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then((stream) => {
         localAudioRef.current.srcObject = stream; // Local stream for the caller
@@ -123,9 +128,7 @@ const CallScreen = () => {
         call.on('stream', (remoteStream) => {
           console.log("I got a stream: ", remoteStream);
           setRemoteStream(remoteStream);
-          
           remoteAudioRef.current.srcObject = remoteStream; // Set the remote stream
-          
         });
   
         call.on('error', (err) => {
@@ -138,6 +141,7 @@ const CallScreen = () => {
         alert(`Error accessing media: ${err}`);
       });
   };
+  
   
   useEffect(() => {
     if (initiator === 'true' && peer) {
