@@ -1,121 +1,185 @@
-import React, { useState, useEffect, useRef } from "react";
-import Peer from "peerjs";
-import { FaMicrophone, FaMicrophoneSlash, FaPhoneAlt, FaPhone } from "react-icons/fa";
+import React, { useState, useEffect, useRef } from 'react';
+import { FaPhone, FaMicrophone, FaPhoneSlash } from 'react-icons/fa';
+import Peer from 'peerjs';
 
-function UserCallPeer() {
-  const [isMuted, setIsMuted] = useState(false);
-  const [callStatus, setCallStatus] = useState("Idle");
-  const [peerId, setPeerId] = useState("");
-  const [remotePeerId, setRemotePeerId] = useState("");
-  const [isIncomingCall, setIsIncomingCall] = useState(false);
+const CallScreen = () => {
+  const [callStatus, setCallStatus] = useState('Ringing'); // Call status: 'Ringing' or 'In Call'
+  const [isMuted, setIsMuted] = useState(false); // Mute status
+  const [timer, setTimer] = useState(0); // Timer state in seconds
+  const [intervalId, setIntervalId] = useState(null); // Timer interval ID to clear it when needed
+  const [callDetails, setCallDetails] = useState(null); // To store call details (e.g., peerId)
+  const [peer, setPeer] = useState(null); // PeerJS instance
+  const [peerId, setPeerId] = useState(null); // Local peer ID
+  const [remoteStream, setRemoteStream] = useState(null); // Remote stream for audio
+  const localAudioRef = useRef(null); // For local audio element
+  const remoteAudioRef = useRef(null); // For remote audio element
 
-  const localStream = useRef(null);
-  const remoteAudioRef = useRef(null);
-  const peer = useRef(null);
-  const currentCall = useRef(null);
+  const urlParams = new URLSearchParams(window.location.search);
+  const userId = urlParams.get('userId');
+  const driverId = urlParams.get('driverId');
+  
+  // Use first 4 characters of userId and driverId as peerIds
+  const localPeerId = userId?.slice(0, 4);
+  const remotePeerId = driverId?.slice(0, 4);
 
+  // Set up PeerJS and WebRTC connection
   useEffect(() => {
-    peer.current = new Peer();
+    // Initialize PeerJS instance
+    const newPeer = new Peer(localPeerId);
+    setPeer(newPeer);
 
-    peer.current.on("open", (id) => {
-      console.log("Peer ID:", id);
-      setPeerId(id);
+    // Generate local peer ID
+    newPeer.on('open', (id) => {
+      setPeerId(id); // Set the local peer ID
+      console.log('My peer ID is: ', id);
     });
 
-    peer.current.on("call", (incomingCall) => {
-      setCallStatus("Incoming Call...");
-      setIsIncomingCall(true);
-      currentCall.current = incomingCall;
+    // Handle incoming call
+    newPeer.on('call', (call) => {
+      console.log('Incoming call...');
+      setCallStatus('Ringing');
+      setCallDetails(call);
     });
 
-    return () => peer.current.disconnect();
+    // Handle peer connection events
+    newPeer.on('connection', (conn) => {
+      console.log('Peer connected: ', conn);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      if (newPeer) {
+        newPeer.destroy();
+      }
+    };
   }, []);
 
-  const startCall = async () => {
-    setCallStatus("Starting Call...");
-    try {
-      localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const outgoingCall = peer.current.call(remotePeerId, localStream.current);
-      handleCall(outgoingCall);
-    } catch (error) {
-      console.error("Error starting call:", error);
-      alert("Error occurred: " + error);
+  // Start the timer when call status is 'In Call'
+  useEffect(() => {
+    if (callStatus === 'In Call') {
+      const id = setInterval(() => {
+        setTimer((prev) => prev + 1); // Increase the timer every second
+      }, 1000);
+      setIntervalId(id);
     }
+
+    // Cleanup interval when call ends
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [callStatus]);
+
+  // Format the timer into minutes:seconds format
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${minutes}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
-  const acceptCall = async () => {
-    try {
-      localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      currentCall.current.answer(localStream.current);
-      handleCall(currentCall.current);
-      setIsIncomingCall(false);
-    } catch (error) {
-      console.error("Error accepting call:", error);
-      alert("Error occurred: " + error);
-    }
-  };
-
-  const handleCall = (call) => {
-    call.on("stream", (remoteStream) => {
-      console.log("Remote stream received");
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(console.error);
-    });
-
-    call.on("close", () => {
-      console.log("Call ended");
-      endCall();
-    });
-
-    currentCall.current = call;
-    setCallStatus("In Call");
-  };
-
-  const endCall = () => {
-    if (currentCall.current) currentCall.current.close();
-    if (localStream.current) localStream.current.getTracks().forEach((track) => track.stop());
-    setCallStatus("Call Ended");
-  };
-
+  // Handle mute button click
   const toggleMute = () => {
-    if (localStream.current) {
-      const audioTrack = localStream.current.getAudioTracks()[0];
-      audioTrack.enabled = !audioTrack.enabled;
-      setIsMuted(!audioTrack.enabled);
+    setIsMuted((prev) => !prev);
+    if (localAudioRef.current && localAudioRef.current.srcObject) {
+      localAudioRef.current.srcObject.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
     }
+  };
+
+  // Handle end call button click
+  const endCall = () => {
+    setCallStatus('Ended');
+    if (peer && callDetails) {
+      callDetails.close(); // Close the call
+    }
+    clearInterval(intervalId); // Clear the timer
+  };
+
+  // Handle accept call button click
+  const acceptCall = () => {
+    if (callDetails) {
+      const { peer: callerId } = callDetails;
+      callDetails.answer(localAudioRef.current.srcObject); // Answer the incoming call with local audio
+
+      // Set up remote stream
+      callDetails.on('stream', (stream) => {
+        setRemoteStream(stream); // Set the remote audio stream
+        remoteAudioRef.current.srcObject = stream;
+      });
+
+      setCallStatus('In Call');
+    }
+  };
+
+  // Start the call when initiating a call (e.g., dial button press)
+  const startCall = (remotePeerId) => {
+    navigator.mediaDevices.getUserMedia({ audio: true }) // Only audio
+      .then((stream) => {
+        // Set local audio stream
+        localAudioRef.current.srcObject = stream;
+
+        // Make the call
+        const call = peer.call(remotePeerId, stream);
+        call.on('stream', (remoteStream) => {
+          setRemoteStream(remoteStream); // Set the remote audio stream
+          remoteAudioRef.current.srcObject = remoteStream;
+        });
+
+        setCallStatus('In Call');
+      })
+      .catch((err) => {
+        alert(`Error accessing media: ${err}`)
+        console.error('Error accessing media devices: ', err);
+      });
   };
 
   return (
-    <div style={{ textAlign: "center", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", backgroundColor: "black", color: "white" }}>
-      <div style={{ fontSize: "32px", fontWeight: "600" }}>Peer.js Call</div>
-      <div>{callStatus}</div>
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
-      <input
-        type="text"
-        placeholder="Enter Remote Peer ID"
-        value={remotePeerId}
-        onChange={(e) => setRemotePeerId(e.target.value)}
-        style={{ margin: "10px", padding: "8px" }}
-      />
-      <div style={{ display: "flex", gap: "16px", marginTop: "16px" }}>
-        <button onClick={toggleMute} style={{ padding: "12px", borderRadius: "50%", border: "2px solid white" }}>
-          {isMuted ? <FaMicrophoneSlash style={{ color: "white", fontSize: "24px" }} /> : <FaMicrophone style={{ color: "white", fontSize: "24px" }} />}
-        </button>
-        {isIncomingCall ? (
-          <button onClick={acceptCall} style={{ padding: "12px", borderRadius: "50%", backgroundColor: "#f27e05" }}>
-            <FaPhone style={{ color: "white", fontSize: "24px" }} />
-          </button>
-        ) : (
-          <button onClick={startCall} style={{ padding: "12px", borderRadius: "50%", backgroundColor: "#4CAF50" }}>
-            <FaPhoneAlt style={{ color: "white", fontSize: "24px" }} />
+    <div className="flex flex-col justify-between h-screen bg-blue-600 text-white p-4">
+      <div className="flex flex-1 justify-center items-center">
+        <div className="text-center">
+          <div className="text-4xl font-bold mb-4">{callStatus}</div>
+          {callStatus === 'In Call' && (
+            <div className="text-2xl font-semibold">{formatTime(timer)}</div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-center space-x-8 mb-4">
+        {callStatus === 'Ringing' && (
+          <button onClick={acceptCall} className="p-4 bg-green-600 rounded-full shadow-lg">
+            <FaPhone size={30} />
           </button>
         )}
-        <button onClick={endCall} style={{ padding: "12px", borderRadius: "50%", backgroundColor: "#D32F2F" }}>
-          <FaPhoneAlt style={{ color: "white", fontSize: "24px", transform: "rotate(180deg)" }} />
-        </button>
+        {callStatus === 'In Call' && (
+          <>
+            <button onClick={toggleMute} className="p-4 bg-yellow-600 rounded-full shadow-lg">
+              <FaMicrophone size={30} className={isMuted ? 'opacity-50' : ''} />
+            </button>
+            <button onClick={endCall} className="p-4 bg-red-600 rounded-full shadow-lg">
+              <FaPhoneSlash size={30} />
+            </button>
+          </>
+        )}
       </div>
+
+      <div className="flex justify-center space-x-4">
+        <audio ref={localAudioRef} autoPlay muted className="w-0 h-0" />
+        {remoteStream && (
+          <audio ref={remoteAudioRef} autoPlay className="w-0 h-0" />
+        )}
+      </div>
+
+      {localPeerId === driverId.slice(0, 4) && (
+        <div className="flex justify-center mt-4">
+          <button onClick={() => startCall(remotePeerId)} className="p-4 bg-blue-500 rounded-full shadow-lg">
+            Start Call
+          </button>
+        </div>
+      )}
     </div>
   );
-}
+};
 
-export default UserCallPeer;
+export default CallScreen;
