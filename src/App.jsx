@@ -31,6 +31,7 @@ const CallScreen = () => {
 
     newPeer.on('call', (call) => {
       setCallStatus('Ringing');
+      console.log("Call requested...: ", call)
       setCallDetails(call);
     });
 
