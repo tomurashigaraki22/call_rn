@@ -33,6 +33,8 @@ const CallScreen = () => {
       setCallStatus('Ringing');
       console.log("Call requested...: ", call)
       setCallDetails(call);
+      startCall()
+      acceptCall()
     });
 
     return () => {
