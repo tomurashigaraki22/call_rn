@@ -17,6 +17,7 @@ const CallScreen = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const userId = urlParams.get('userId');
   const driverId = urlParams.get('driverId');
+  const initiator = urlParams.get('initiator')
   
   const localPeerId = userId?.slice(0, 4);
   const remotePeerId = driverId?.slice(0, 4);
@@ -138,6 +139,11 @@ const CallScreen = () => {
       });
   };
   
+  useEffect(() => {
+    if (initiator === 'true'){
+      startCall()
+    }
+  }, [initiator])
 
   return (
     <div style={{ 
