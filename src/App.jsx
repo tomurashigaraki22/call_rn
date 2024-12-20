@@ -29,9 +29,10 @@ const CallScreen = () => {
       setPeerId(id);
     });
 
-    newPeer.on('call', (call) => {
+    newPeer.on('call', async (call) => {
       setCallStatus('Ringing');
       setCallDetails(call);
+      
     });
 
     return () => {
@@ -80,30 +81,14 @@ const CallScreen = () => {
 
   const acceptCall = () => {
     if (callDetails) {
-      // Fetch the local media stream if not already set
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then((stream) => {
-          // Set the local stream to the audio element
-          localAudioRef.current.srcObject = stream;
-  
-          // Answer the incoming call with the local stream
-          callDetails.answer(stream);
-  
-          // Set up the remote stream when it's received
-          callDetails.on('stream', (remoteStream) => {
-            setRemoteStream(remoteStream);
-            remoteAudioRef.current.srcObject = remoteStream;
-          });
-  
-          // Update call status
-          setCallStatus('In Call');
-        })
-        .catch((err) => {
-          alert(`Error accessing media: ${err}`);
-        });
+      callDetails.answer(localAudioRef.current.srcObject);
+      callDetails.on('stream', (stream) => {
+        setRemoteStream(stream);
+        remoteAudioRef.current.srcObject = stream;
+      });
+      setCallStatus('In Call');
     }
   };
-  
 
   const startCall = (remotePeerId) => {
     navigator.mediaDevices.getUserMedia({ audio: true })
