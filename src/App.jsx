@@ -95,6 +95,7 @@ const CallScreen = () => {
         localAudioRef.current.srcObject = stream;
         const call = peer.call(remotePeerId, stream);
         call.on('stream', (remoteStream) => {
+          console.log("I got a stream: ", remoteStream)
           setRemoteStream(remoteStream);
           remoteAudioRef.current.srcObject = remoteStream;
         });
