@@ -58,7 +58,9 @@ const CallScreen = () => {
   }, []);
 
   const checkAndConnectToPeer = () => {
-    if (!targetPeerId) return;
+    if (!targetPeerId){
+      console.log("TTT: ", targetPeerId)
+    };
 
     const conn = peer.connect(targetPeerId);
     conn.on('open', () => {
