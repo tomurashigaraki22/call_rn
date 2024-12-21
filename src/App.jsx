@@ -40,6 +40,8 @@ const CallScreen = () => {
         incomingCall.on('stream', (remoteStream) => {
           remoteAudioRef.current.srcObject = remoteStream;
           remoteAudioRef.current.volume = 2.0; // Amplify the remote stream volume
+          remoteAudioRef.current.play();
+
           setCallStatus('In Call');
         });
       });
