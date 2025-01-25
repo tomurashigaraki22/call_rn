@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
-import { FiPhoneOff, FiMic, FiMicOff } from 'react-icons/fi'; // Importing icons
-import './main.css'
+import { FiPhoneOff, FiMic, FiMicOff, FiPhoneCall } from 'react-icons/fi'; // Importing icons
 
 const CallScreen = () => {
   const [callStatus, setCallStatus] = useState('Connecting...');
   const [peer, setPeer] = useState(null);
   const [peerId, setPeerId] = useState('');
-  const [remotePeerId, setRemotePeerId] = useState(''); // Set this dynamically
+  const [remotePeerId, setRemotePeerId] = useState(''); // Set dynamically
   const [isMuted, setIsMuted] = useState(false);
   const [call, setCall] = useState(null);
   const localAudioRef = useRef(null);
@@ -22,7 +21,7 @@ const CallScreen = () => {
   const targetPeerId = userId;
 
   useEffect(() => {
-    const newPeer = new Peer(localPeerId); // Use a predefined Peer ID
+    const newPeer = new Peer(localPeerId);
     setPeer(newPeer);
 
     newPeer.on('open', (id) => {
@@ -39,20 +38,9 @@ const CallScreen = () => {
 
         incomingCall.on('stream', (remoteStream) => {
           remoteAudioRef.current.srcObject = remoteStream;
-          remoteAudioRef.current.volume = 1.0; // Amplify the remote stream volume
           remoteAudioRef.current.play();
-
           setCallStatus('In Call');
         });
-      });
-    });
-
-    newPeer.on('connection', (conn) => {
-      conn.on('open', () => {
-        console.log('Connected to peer:', conn.peer);
-        if (isInitiator) {
-          startCall(conn.peer);
-        }
       });
     });
 
@@ -61,45 +49,19 @@ const CallScreen = () => {
     };
   }, []);
 
-  
-  
-
   useEffect(() => {
-    let intervalId;
-
-
-    const checkAndConnectToPeer = () => {
-      if (!targetPeerId) return;
-    
+    if (isInitiator && peer) {
       const conn = peer.connect(targetPeerId);
       conn.on('open', () => {
-        console.log('Connection established with:', targetPeerId);
         setCallStatus('Peer Connected');
         startCall(targetPeerId);
-    
-        // Clear the interval since the connection is established
-        clearInterval(intervalId);
       });
-    
-      conn.on('error', (err) => {
-        console.error('Connection failed, retrying...', err);
+
+      conn.on('error', () => {
+        setCallStatus('Retrying Connection...');
       });
-    };
-  
-    if (isInitiator && peer) {
-      intervalId = setInterval(() => {
-        checkAndConnectToPeer();
-      }, 2000); // Check every 2 seconds
     }
-
-
-  
-    return () => {
-      // Cleanup interval on component unmount or if dependencies change
-      clearInterval(intervalId);
-    };
   }, [isInitiator, peer]);
-  
 
   const startCall = (remotePeerId) => {
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
@@ -124,63 +86,110 @@ const CallScreen = () => {
   };
 
   const toggleMute = () => {
-    if (localAudioRef.current) {
-      const stream = localAudioRef.current.srcObject;
-      const audioTrack = stream.getAudioTracks()[0];
+    const stream = localAudioRef.current?.srcObject;
+    const audioTrack = stream?.getAudioTracks()[0];
+    if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
       setIsMuted(!audioTrack.enabled);
     }
   };
 
   return (
-    <div style={{ textAlign: 'center', backgroundColor: 'black' }}>
-      <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', paddingTop: 20 }}>
-        <p style={{ fontSize: 20, color: 'white' }}>{callStatus}</p>
-      </div>
-      
+    <div
+      style={{
+        height: '100vh',
+        width: '100vw',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        padding: '5%',
+        boxSizing: 'border-box',
+      }}
+    >
+      <p
+        style={{
+          fontSize: '5vw',
+          color: 'white',
+          textAlign: 'center',
+        }}
+      >
+        {callStatus}
+      </p>
+
       <audio ref={localAudioRef} autoPlay muted style={{ display: 'none' }} />
       <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
 
-      {/* Buttons for End Call and Mute/Unmute */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', position: 'absolute', bottom: 20, width: '100%' }}>
-          {/* End Call Icon */}
-          <button
-            onClick={endCall}
-            style={{
-              padding: '15px',
-              backgroundColor: 'red',
-              border: 'none',
-              borderRadius: '50%',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px',
-              cursor: 'pointer',
-            }}
-          >
-            <FiPhoneOff color='white' size={30} />
-          </button>
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-around',
+          position: 'absolute',
+          bottom: '10%',
+        }}
+      >
+        {/* End Call */}
+        <button
+          onClick={endCall}
+          style={{
+            width: '15vw',
+            height: '15vw',
+            backgroundColor: 'red',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '6vw',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <FiPhoneOff />
+        </button>
 
-          {/* Mute/Unmute Icon */}
-          <button
-            onClick={toggleMute}
-            style={{
-              padding: '15px',
-              backgroundColor: isMuted ? 'gray' : 'green',
-              border: 'none',
-              borderRadius: '50%',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px',
-              cursor: 'pointer',
-            }}
-          >
-            {isMuted ? <FiMicOff color='white' size={30}/> : <FiMic color='white' size={30}/>}
-          </button>
-        </div>
+        {/* Mute/Unmute */}
+        <button
+          onClick={toggleMute}
+          style={{
+            width: '15vw',
+            height: '15vw',
+            backgroundColor: isMuted ? 'gray' : 'green',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '6vw',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          {isMuted ? <FiMicOff /> : <FiMic />}
+        </button>
+
+        {/* Redial */}
+        <button
+          onClick={() => startCall(remotePeerId)}
+          style={{
+            width: '15vw',
+            height: '15vw',
+            backgroundColor: '#007bff',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '6vw',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <FiPhoneCall />
+        </button>
+      </div>
     </div>
   );
 };
