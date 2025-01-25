@@ -18,8 +18,8 @@ const CallScreen = () => {
   const userId = urlParams.get('userId');
   const isInitiator = urlParams.get('initiator') === 'true';
 
-  const localPeerId = driverId?.slice(0, 4);
-  const targetPeerId = userId?.slice(0, 4);
+  const localPeerId = driverId;
+  const targetPeerId = userId;
 
   useEffect(() => {
     const newPeer = new Peer(localPeerId); // Use a predefined Peer ID
