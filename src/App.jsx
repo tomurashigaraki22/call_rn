@@ -1,21 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Peer from 'peerjs';
-import { FiPhoneOff, FiMic, FiMicOff, FiPhoneCall } from 'react-icons/fi'; // Importing icons
+import React, { useState, useEffect, useRef } from "react";
+import Peer from "peerjs";
+import { FiPhoneOff, FiMic, FiMicOff } from "react-icons/fi";
+import "./main.css";
 
 const CallScreen = () => {
-  const [callStatus, setCallStatus] = useState('Connecting...');
+  const [callStatus, setCallStatus] = useState("Connecting...");
   const [peer, setPeer] = useState(null);
-  const [peerId, setPeerId] = useState('');
-  const [remotePeerId, setRemotePeerId] = useState(''); // Set dynamically
+  const [peerId, setPeerId] = useState("");
+  const [remotePeerId, setRemotePeerId] = useState(""); // Set this dynamically
   const [isMuted, setIsMuted] = useState(false);
   const [call, setCall] = useState(null);
   const localAudioRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
   const urlParams = new URLSearchParams(window.location.search);
-  const driverId = urlParams.get('driverId');
-  const userId = urlParams.get('userId');
-  const isInitiator = urlParams.get('initiator') === 'true';
+  const driverId = urlParams.get("driverId");
+  const userId = urlParams.get("userId");
+  const isInitiator = urlParams.get("initiator") === "true";
 
   const localPeerId = driverId;
   const targetPeerId = userId;
@@ -24,23 +25,32 @@ const CallScreen = () => {
     const newPeer = new Peer(localPeerId);
     setPeer(newPeer);
 
-    newPeer.on('open', (id) => {
+    newPeer.on("open", (id) => {
       setPeerId(id);
-      console.log('Peer ID:', id);
+      console.log("Peer ID:", id);
     });
 
-    newPeer.on('call', (incomingCall) => {
-      setCallStatus('Ringing...');
+    newPeer.on("call", (incomingCall) => {
+      setCallStatus("Ringing...");
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         localAudioRef.current.srcObject = stream;
         incomingCall.answer(stream);
         setCall(incomingCall);
 
-        incomingCall.on('stream', (remoteStream) => {
+        incomingCall.on("stream", (remoteStream) => {
           remoteAudioRef.current.srcObject = remoteStream;
           remoteAudioRef.current.play();
-          setCallStatus('In Call');
+          setCallStatus("In Call");
         });
+      });
+    });
+
+    newPeer.on("connection", (conn) => {
+      conn.on("open", () => {
+        console.log("Connected to peer:", conn.peer);
+        if (isInitiator) {
+          startCall(conn.peer);
+        }
       });
     });
 
@@ -50,17 +60,34 @@ const CallScreen = () => {
   }, []);
 
   useEffect(() => {
-    if (isInitiator && peer) {
+    let intervalId;
+
+    const checkAndConnectToPeer = () => {
+      if (!targetPeerId) return;
+
       const conn = peer.connect(targetPeerId);
-      conn.on('open', () => {
-        setCallStatus('Peer Connected');
+      conn.on("open", () => {
+        console.log("Connection established with:", targetPeerId);
+        setCallStatus("Peer Connected");
         startCall(targetPeerId);
+
+        clearInterval(intervalId);
       });
 
-      conn.on('error', () => {
-        setCallStatus('Retrying Connection...');
+      conn.on("error", (err) => {
+        console.error("Connection failed, retrying...", err);
       });
+    };
+
+    if (isInitiator && peer) {
+      intervalId = setInterval(() => {
+        checkAndConnectToPeer();
+      }, 2000);
     }
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [isInitiator, peer]);
 
   const startCall = (remotePeerId) => {
@@ -69,26 +96,26 @@ const CallScreen = () => {
       const outgoingCall = peer.call(remotePeerId, stream);
       setCall(outgoingCall);
 
-      outgoingCall.on('stream', (remoteStream) => {
+      outgoingCall.on("stream", (remoteStream) => {
         remoteAudioRef.current.srcObject = remoteStream;
-        setCallStatus('In Call');
+        setCallStatus("In Call");
       });
 
-      setCallStatus('Calling...');
+      setCallStatus("Calling...");
     });
   };
 
   const endCall = () => {
     if (call) {
       call.close();
-      setCallStatus('Call Ended');
+      setCallStatus("Call Ended");
     }
   };
 
   const toggleMute = () => {
-    const stream = localAudioRef.current?.srcObject;
-    const audioTrack = stream?.getAudioTracks()[0];
-    if (audioTrack) {
+    if (localAudioRef.current) {
+      const stream = localAudioRef.current.srcObject;
+      const audioTrack = stream.getAudioTracks()[0];
       audioTrack.enabled = !audioTrack.enabled;
       setIsMuted(!audioTrack.enabled);
     }
@@ -97,97 +124,71 @@ const CallScreen = () => {
   return (
     <div
       style={{
-        height: '100vh',
-        width: '100vw',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#000',
-        padding: '5%',
-        boxSizing: 'border-box',
+        textAlign: "center",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "linear-gradient(135deg, #1e293b, #334155)",
+        color: "white",
       }}
     >
-      <p
-        style={{
-          fontSize: '5vw',
-          color: 'white',
-          textAlign: 'center',
-        }}
-      >
-        {callStatus}
-      </p>
+      <div>
+        <p style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px" }}>
+          {callStatus}
+        </p>
+      </div>
 
-      <audio ref={localAudioRef} autoPlay muted style={{ display: 'none' }} />
-      <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
+      <audio ref={localAudioRef} autoPlay muted style={{ display: "none" }} />
+      <audio ref={remoteAudioRef} autoPlay style={{ display: "none" }} />
 
       <div
         style={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-around',
-          position: 'absolute',
-          bottom: '10%',
+          display: "flex",
+          gap: "40px",
+          position: "absolute",
+          bottom: "10%",
+          width: "100%",
+          justifyContent: "center",
         }}
       >
-        {/* End Call */}
         <button
           onClick={endCall}
           style={{
-            width: '15vw',
-            height: '15vw',
-            backgroundColor: 'red',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: '6vw',
-            border: 'none',
-            cursor: 'pointer',
+            padding: "20px",
+            backgroundColor: "red",
+            border: "none",
+            borderRadius: "50%",
+            color: "white",
+            fontSize: "24px",
+            cursor: "pointer",
+            boxShadow: "0 5px 10px rgba(0, 0, 0, 0.3)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
-          <FiPhoneOff />
+          <FiPhoneOff size={30} />
         </button>
 
-        {/* Mute/Unmute */}
         <button
           onClick={toggleMute}
           style={{
-            width: '15vw',
-            height: '15vw',
-            backgroundColor: isMuted ? 'gray' : 'green',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: '6vw',
-            border: 'none',
-            cursor: 'pointer',
+            padding: "20px",
+            backgroundColor: isMuted ? "gray" : "green",
+            border: "none",
+            borderRadius: "50%",
+            color: "white",
+            fontSize: "24px",
+            cursor: "pointer",
+            boxShadow: "0 5px 10px rgba(0, 0, 0, 0.3)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
-          {isMuted ? <FiMicOff /> : <FiMic />}
-        </button>
-
-        {/* Redial */}
-        <button
-          onClick={() => startCall(remotePeerId)}
-          style={{
-            width: '15vw',
-            height: '15vw',
-            backgroundColor: '#007bff',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: '6vw',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          <FiPhoneCall />
+          {isMuted ? <FiMicOff size={30} /> : <FiMic size={30} />}
         </button>
       </div>
     </div>
